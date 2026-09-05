@@ -1,0 +1,71 @@
+[project]
+name = "web-intelligence"
+version = "0.1.0"
+description = "Web Intelligence Collection & Continuous Monitoring backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "sqlalchemy[asyncio]==2.0.52",
+    "asyncpg==0.31.0",
+    "alembic==1.19.1",
+    "httpx==0.28.1",
+    "dnspython==2.8.0",
+    "selectolax==0.4.11",
+    "trafilatura==2.2.0",
+    "feedparser==6.0.14",
+    "playwright==1.62.0",
+    "crawlee==1.10.0",
+    "minio==7.2.20",
+    "prometheus-client==0.26.0",
+    "extruct==0.18.0",
+    "scrapling==0.4.15",
+    # Public-Suffix-List-aware eTLD+1 (registrable domain) for same-site
+    # crawl-scope decisions (Phase 8.1) -- already pulled in transitively by
+    # crawlee 1.10.0; pinned explicitly since app code now imports it
+    # directly rather than relying on an unpinned transitive version.
+    "tldextract==5.3.2",
+    # Phase 8 entity/story intelligence (all verified live this session --
+    # licenses/versions checked, not guessed).
+    "rapidfuzz==3.14.6",
+    "dateparser==1.4.3",
+    "imagehash==4.3.2",
+    "langdetect==1.0.9",
+    "spacy==3.8.16",
+    # en_core_web_sm is not on PyPI -- install separately with
+    # `python -m spacy download en_core_web_sm` (fetches from
+    # github.com/explosion/spacy-models, same as this session did).
+    "gliner==0.2.28",
+    "transformers==5.13.1",
+    # torch: install the CPU-only wheel explicitly, e.g.
+    # `uv pip install --extra-index-url https://download.pytorch.org/whl/cpu torch==2.14.0`
+    # -- installing "torch" from PyPI alone pulls the full CUDA build
+    # (~2GB of unused nvidia-* packages on a CPU-only deployment).
+    "torch==2.14.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "respx==0.23.1",
+    "aiosqlite==0.22.1",
+    # Phase 9 perf measurement (spec section 43): pytest-native, no separate
+    # infra/dashboard to run (asv needs git-tag history; pytest-codspeed
+    # needs an external SaaS) -- fits a one-off "how fast is extraction at
+    # small/medium/large scale" report, not continuous regression tracking.
+    "pytest-benchmark==5.3.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

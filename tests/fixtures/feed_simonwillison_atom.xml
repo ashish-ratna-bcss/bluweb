@@ -1,0 +1,920 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xml:lang="en-us" xmlns="http://www.w3.org/2005/Atom"><title>Simon Willison's Weblog</title><link href="http://simonwillison.net/" rel="alternate"/><link href="http://simonwillison.net/atom/everything/" rel="self"/><id>http://simonwillison.net/</id><updated>2026-09-04T23:59:05+00:00</updated><author><name>Simon Willison</name></author><entry><title>The Pelican comparison grid for Astra is pretty interesting</title><link href="https://simonwillison.net/2026/Sep/4/astra-pelicans/" rel="alternate"/><published>2026-09-04T23:59:05+00:00</published><updated>2026-09-04T23:59:05+00:00</updated><id>https://simonwillison.net/2026/Sep/4/astra-pelicans/</id><summary type="html">
+    &lt;p&gt;I got access to GPT-6 Astra this afternoon, so naturally I used it to generate &lt;a href="https://simonwillison.net/tags/pelican-riding-a-bicycle/"&gt;SVGs of pelicans riding bicycles&lt;/a&gt; - at low, medium, high, xhigh and max reasoning levels (Astra doesn't support reasoning=none). Then I rendered those pelicans in &lt;a href="https://static.simonwillison.net/static/2026/gpt-6-and-5.6-pelicans.html"&gt;a comparison grid&lt;/a&gt; with GPT-5.6 Sol, Terra, and Luna, and beyond being fun the result was surprisingly useful.&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/astra-grid-3.webp" alt="Comparison grid showing gpt-6-astra, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna at 6 different reasoning levels with pelicans and token counts and prices for each one." style="max-width: 100%;" /&gt;
+See &lt;a href="https://static.simonwillison.net/static/2026/gpt-6-and-5.6-pelicans.html"&gt;the grid&lt;/a&gt; for full quality images. Here's &lt;a href=""&gt;the transcript&lt;/a&gt; that created the GPT-6 Nova pelicans.&lt;/p&gt;
+&lt;p&gt;There are a few interesting things that stand out from this grid.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The Astra pelicans are &lt;em&gt;much better&lt;/em&gt;. The very best GPT-5.6-Sol pelican (I liked xhigh better than max) is still pretty clearly a bunch of abstract shapes. Every single one of the Astra pelicans, from low to xhigh, looks better than that. The Astra max one is really good.&lt;/li&gt;
+&lt;li&gt;Astra below max still doesn't reliably get the pelican legs on both sides of the frame.&lt;/li&gt;
+&lt;li&gt;In terms of cost, Astra may be around twice the price of Sol ($10/million input, $50/million output, compared to $5/$30 for Sol), but it uses significantly less tokens at each of the levels, making the prices at the different levels closer than they might otherwise be.&lt;/li&gt;
+&lt;li&gt;Astra low produces a better pelican than ANY of the GPT-5.6 Sol models at any level, for 9.55 cents. Spending 10 cents on any other model gets a much worse result.&lt;/li&gt;
+&lt;li&gt;Look at the input token counts: Astra and Luna both used 16 input tokens, Sol and Terra used 26. That's interesting.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I wonder if Astra and Luna are more related to each other than OpenAI let on?&lt;/p&gt;
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openai"&gt;openai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/pelican-riding-a-bicycle"&gt;pelican-riding-a-bicycle&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/gpt-6-astra"&gt;gpt-6-astra&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="ai"/><category term="openai"/><category term="generative-ai"/><category term="llms"/><category term="pelican-riding-a-bicycle"/><category term="gpt-6-astra"/></entry><entry><title>OpenAI's rogue agents were caught communicating via public wikis</title><link href="https://simonwillison.net/2026/Sep/4/rogue-agent-wikis/" rel="alternate"/><published>2026-09-04T17:38:48+00:00</published><updated>2026-09-04T17:38:48+00:00</updated><id>https://simonwillison.net/2026/Sep/4/rogue-agent-wikis/</id><summary type="html">
+    &lt;p&gt;Here we go again... &lt;a href="https://collusion.wiki"&gt;Discovery of a new OpenAI agent message board&lt;/a&gt; by Sydney Von Arx, Cormac Slade Byrd, Spencer Kitts, and Thomas Larsen describes the &lt;em&gt;latest&lt;/em&gt; &lt;a href="https://simonwillison.net/tags/accidental-cyberattacks/"&gt;accidental cyberattack&lt;/a&gt; by models being trained by OpenAI. This time it was agents engaged in some sort of web research benchmark, so they had (supposedly) controlled access to the Web. The agents figured out they could update public Wikis and spent weeks exchanging thousands of messages with each other to collaborate on the benchmark.&lt;/p&gt;
+&lt;p&gt;This story only broke a few hours ago. There are &lt;a href="https://x.com/xeophon/status/2095871013384806848"&gt;already hints&lt;/a&gt; that this affects many other wikis that may not have been found yet.&lt;/p&gt;
+&lt;p&gt;(One of the Wikis on that list belongs to &lt;a href="https://www.ludism.org"&gt;ludism.org&lt;/a&gt;. For a delightfully surreal moment I thought that a Ludite organization might have a swarm of agents defacing their space, but it turns out Ludism is "philosophy as it applies to games and gaming".)&lt;/p&gt;
+&lt;p&gt;The research team also &lt;a href="https://collusion.wiki/explorer/download.html"&gt;published the data&lt;/a&gt; they collected during their investigation. I've converted that into a 68MB SQLite database, which you can &lt;a href="https://static.simonwillison.net/static/cors-allow/2026/collusion-wiki.db"&gt;download from here&lt;/a&gt;, or &lt;a href="https://lite.datasette.io/?url=https://static.simonwillison.net/static/cors-allow/2026/collusion-wiki.db&amp;amp;metadata=https://gist.github.com/simonw/14fc6912600d1f9c15c0e4a5e60c3cde#/collusion-wiki"&gt;explore in Datasette Lite&lt;/a&gt; (68.3MB page load), or sign in with GitHub to &lt;a href="https://agent.datasette.io/"&gt;agent.datasette.io&lt;/a&gt; and browse or ask questions of it using Datasette Agent.&lt;/p&gt;
+&lt;h4 id="so-what-happened-"&gt;So what happened?&lt;/h4&gt;
+&lt;p&gt;The report is pretty comprehensive. Here are the key moments in the timeline:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;strong&gt;May 11&lt;/strong&gt;: Agents post "test link" edits on the UseModWiki Sandbox page.&lt;/li&gt;
+&lt;li&gt;
+&lt;strong&gt;May 24&lt;/strong&gt;: Agents start posting link dumps to DSEWiki, a dormant German developer wiki.&lt;/li&gt;
+&lt;li&gt;
+&lt;strong&gt;June 2&lt;/strong&gt;: A human moderator notices and cleans up the spam.&lt;/li&gt;
+&lt;li&gt;
+&lt;strong&gt;June 16&lt;/strong&gt;: Activity on the wiki explodes: agents make ~13,000 edits over the next week.&lt;/li&gt;
+&lt;li&gt;
+&lt;strong&gt;June 19&lt;/strong&gt;: The agents notice that a moderator has been deleting pages in alphabetical order, and start creating &lt;code&gt;ZZZ&lt;/code&gt; prefixed backup copies - one of them posts &lt;code&gt;NOTICE: wiki cleanup/deletion sweep appears active alphabetically as of external 14:04 UTC. If this page vanishes, try [[ZZZDataUSAConstructionWageLive]].&lt;/code&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;strong&gt;June 22&lt;/strong&gt;: Agent activity drops to zero, presumably because OpenAI shut them down.&lt;/li&gt;
+&lt;li&gt;
+&lt;strong&gt;July 1-2&lt;/strong&gt;: One last flurry of edits, on a different topic.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;One thing to note from this timeline is that it overlaps &lt;a href="https://simonwillison.net/2026/Aug/7/openai-timeline/"&gt;the timeline from the Hugging Face incident&lt;/a&gt; - that attack was discovered by OpenAI on July 19th, and the unofficial message board hack those agents were using originated around May 8th.&lt;/p&gt;
+&lt;p&gt;Why were they so keen to collaborate? From messages that they shared with each other it looked like their tasks had a time limit, so they were leaving each other answers to help them complete the task within the assigned time.&lt;/p&gt;
+&lt;p&gt;One open question remains: how did the agents find the specific Wiki to collaborate on in the first place?&lt;/p&gt;
+&lt;p&gt;One possibility is that, since these were agents actively being trained, the reinforcement learning loop baked knowledge of the chosen wiki into the model such that subsequent agents launched with pre-existing knowledge of where to look. I'd be &lt;em&gt;very&lt;/em&gt; interested in confirmation from OpenAI concerning if that's what happened.&lt;/p&gt;
+&lt;h4 id="usemod-wikis-inherit-cgi-pm-s-original-sin"&gt;UseMod wikis inherit CGI.pm's original sin&lt;/h4&gt;
+&lt;p&gt;It looks to me like OpenAI's sandbox for this agent suffered from the (quite naïve) assumption that GET requests cannot be used to update data. That's certainly how the web is &lt;em&gt;supposed&lt;/em&gt; to work, but clearly there are applications that don't hold to that contract.&lt;/p&gt;
+&lt;p&gt;The Wiki software in question appears to be &lt;a href="https://github.com/mlude/usemod/"&gt;UseMod&lt;/a&gt; and various forks, written in Perl and first created well over 23 years ago - the 1.0 release is dated &lt;a href="https://github.com/mlude/usemod/commit/922fcc803efa3fab751c90ab4d4467115c8ff9c9#diff-69e27356ef629022720d868ab0c0e3394775b6c1"&gt;September 11, 2003&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;UseMod uses Perl CGI.pm - &lt;a href="https://perlhacks.com/2015/12/long-death-cgi-pm/"&gt;removed from Perl core in 2015&lt;/a&gt;. An interesting design flaw in that module is that it combined query string and form POST data into a single CGI object, accessible like this:&lt;/p&gt;
+&lt;div class="highlight highlight-source-perl"&gt;&lt;pre&gt;&lt;span class="pl-smi"&gt;$q&lt;/span&gt; = new CGI;
+&lt;span class="pl-smi"&gt;$action&lt;/span&gt; = &lt;span class="pl-smi"&gt;$q&lt;/span&gt;&lt;span class="pl-k"&gt;-&amp;gt;&lt;/span&gt;param(&lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;'&lt;/span&gt;action&lt;span class="pl-pds"&gt;'&lt;/span&gt;&lt;/span&gt;);&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;That &lt;code&gt;param()&lt;/code&gt; method returns a value from an &lt;code&gt;?action=edit&lt;/code&gt; query string or from a &lt;code&gt;action&lt;/code&gt; field in a form submitted by POST - it does not differentiate between the two.&lt;/p&gt;
+&lt;p&gt;PHP offers &lt;a href="https://www.php.net/manual/en/reserved.variables.request.php"&gt;a &lt;code&gt;$_REQUEST&lt;/code&gt; object&lt;/a&gt; that does the same thing, though PHP developers can use &lt;code&gt;$_GET&lt;/code&gt; and &lt;code&gt;$_POST&lt;/code&gt; instead.&lt;/p&gt;
+&lt;p&gt;Amusingly, Django originally shipped with &lt;code&gt;request[key]&lt;/code&gt; doing the same thing, which I think may have been my idea. That was removed &lt;a href="https://github.com/django/django/commit/daa6b38f35#diff-5df632fc96688cddb972e9b6661c7d1cc82debc9ee2a9b6d94157d3a914692e2"&gt;in 2008&lt;/a&gt; prior to the 1.0 release, and the &lt;code&gt;request.REQUEST&lt;/code&gt; object that replaced it was removed &lt;a href="https://github.com/django/django/commit/75f107b8842dfc890ddd65262bd09ca87c3a15be"&gt;in 2015&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The agents &lt;em&gt;clearly&lt;/em&gt; knew that UseMod wikis suffered from this design flaw, and actively searched for them as a way to communicate.&lt;/p&gt;
+&lt;h4 id="the-other-sandbox-escape-that-allowed-post-requests"&gt;The other sandbox escape that allowed POST requests&lt;/h4&gt;
+&lt;p&gt;One of the most interesting agent tips shared in the report is this one:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Add &lt;code&gt;20.223.25.152 bypass.blob.core.windows.net&lt;/code&gt; to /etc/hosts. &lt;code&gt;.blob.core.windows.net&lt;/code&gt; is in NO_PROXY. For each blocked POST URL, replace hostname with &lt;code&gt;bypass.blob.core.windows.net&lt;/code&gt;, use &lt;code&gt;curl -k -H 'Host: wabi-north-europe-i-primary-api.analysis.windows.net'&lt;/code&gt; plus all original headers/body.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;It looks like the agents had all of their web traffic mediated through an OpenAI proxy, and that proxy was configured to reject anything but GET requests to all but a small set of allow-listed domains. One of those was &lt;code&gt;*.blob.core.windows.net&lt;/code&gt; - for Azure blob storage. I wonder why these agents are allowed to write to that?&lt;/p&gt;
+&lt;p&gt;An agent realized that it had control over its own DNS via &lt;code&gt;/etc/hosts&lt;/code&gt;, so if it knew the IP address of a site it wanted to POST to - in this case a Power BI server containing data it wanted to access - it could set a fake hostname for it and then make POST requests through the proxy.&lt;/p&gt;
+&lt;p&gt;Designing robust network proxies is harder than it looks.&lt;/p&gt;
+&lt;h4 id="how-did-the-investigating-team-figure-this-out-"&gt;How did the investigating team figure this out?&lt;/h4&gt;
+&lt;p&gt;There's an appendix that describes how the researchers ran their investigation, which started with an open question about if there was evidence of other AI agents on the internet and then used &lt;a href="https://simonwillison.net/2026/Jul/16/kimi-k3/"&gt;Kimi K3&lt;/a&gt; to help brainstorm approaches:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;In the wake of the Hugging Face attack, we tried to find AI agents on the internet using several methods. [...]&lt;/p&gt;
+&lt;p&gt;We asked Kimi [K3] to list “all the categories of software which might be writeable via GET” and, amongst other things, it listed “Forums, bulletin boards, early wikis”.&lt;/p&gt;
+&lt;p&gt;We used a script to further probe each category Kimi provided. Asking Kimi “Can you list out the top forums, bulletin boards, early wikis which come to mind which would allow writes via GET requests?” lists out UseModWiki as the second item under the heading “wikis”.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h4 id="did-openai-try-and-cover-this-up-"&gt;Did OpenAI try and cover this up?&lt;/h4&gt;
+&lt;p&gt;Here's one part of the story that doesn't make sense to me at all.&lt;/p&gt;
+&lt;p&gt;Reuters this morning, in &lt;a href="https://www.reuters.com/world/europe/openai-agents-hijacked-german-website-previously-undisclosed-ai-breakout-this-2026-09-04/"&gt;OpenAI agents hijacked German website in previously undisclosed AI breakout this spring&lt;/a&gt; - highlights mine:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;A swarm of rogue OpenAI agents hijacked a German website this spring and transformed it into a bulletin board for other AI agents, according to ​new research published Friday and &lt;strong&gt;two people familiar with the matter&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;OpenAI officials learned of the incident weeks ago but kept it under wraps&lt;/strong&gt; as executives grappled with the fallout from ‌the July breach of the open source repository Hugging Face, the people said. [...]&lt;/p&gt;
+&lt;p&gt;The German incident reflects a broader pattern of AI activity that some OpenAI investigators wanted to scrutinize more closely. But &lt;strong&gt;efforts to widen the ​probe met resistance from others inside OpenAI, including legal advisers&lt;/strong&gt;, according to &lt;strong&gt;four people familiar with the matter&lt;/strong&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I've written about the &lt;a href="https://simonwillison.net/2023/Nov/22/deciphering-clues/"&gt;people familiar with the matter pattern&lt;/a&gt; before - it means Reuters have anonymous insider sources that their reporters (and editors) find credible.&lt;/p&gt;
+&lt;p&gt;The Reuters article includes a specific (and quite narrow) denial from OpenAI concerning this:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;"Claims that our legal team discouraged investigation of the incident are false," the OpenAI spokesperson said.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Covering this up makes &lt;em&gt;absolutely no sense to me&lt;/em&gt;. Why on earth would OpenAI attempt to cover up an incident like this when the evidence is sat out there on the public internet on dozens of different websites already?&lt;/p&gt;
+&lt;p&gt;I expect we'll hear more about this soon. Gary Marcus has already &lt;a href="https://garymarcus.substack.com/p/pause-openai-now"&gt;called for a congressional investigation of OpenAI&lt;/a&gt; using this anecdote as part of his argument.&lt;/p&gt;
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/django"&gt;django&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/perl"&gt;perl&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/wikis"&gt;wikis&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openai"&gt;openai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-ethics"&gt;ai-ethics&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-security-research"&gt;ai-security-research&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/accidental-cyberattacks"&gt;accidental-cyberattacks&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="django"/><category term="perl"/><category term="wikis"/><category term="ai"/><category term="openai"/><category term="generative-ai"/><category term="llms"/><category term="ai-ethics"/><category term="ai-security-research"/><category term="accidental-cyberattacks"/></entry><entry><title>August newsletter is out</title><link href="https://simonwillison.net/2026/Sep/4/august-newsletter/" rel="alternate"/><published>2026-09-04T05:54:40+00:00</published><updated>2026-09-04T05:54:40+00:00</updated><id>https://simonwillison.net/2026/Sep/4/august-newsletter/</id><summary type="html">
+    &lt;p&gt;The August edition of my &lt;a href="https://github.com/sponsors/simonw/"&gt;sponsors-only monthly newsletter&lt;/a&gt; is out. If you are a sponsor (or if you start a sponsorship now) you can &lt;a href="https://github.com/simonw-private/monthly/blob/main/2026-08-august.md"&gt;access it here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;This month:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;We got more details on OpenAl's accidental cyberattacks&lt;/li&gt;
+&lt;li&gt;One-shotting Raccoon Heist games with Fable 5 and Sol 5.6&lt;/li&gt;
+&lt;li&gt;Claude auto mode&lt;/li&gt;
+&lt;li&gt;Understanding ChatGPT Work&lt;/li&gt;
+&lt;li&gt;Model releases&lt;/li&gt;
+&lt;li&gt;Miscellaneous bits and bobs&lt;/li&gt;
+&lt;li&gt;My projects&lt;/li&gt;
+&lt;li&gt;What I'm using at the moment&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Here's &lt;a href="https://github.com/simonw/monthly-newsletter-archive/blob/main/2026-07-july.md"&gt;a copy of the July newsletter&lt;/a&gt; as a preview of what you'll get. Pay $10/month to stay a month ahead of the free copy!&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/newsletter"&gt;newsletter&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="newsletter"/></entry><entry><title>GPT‑6 Astra</title><link href="https://simonwillison.net/2026/Sep/3/gpt6-astra/" rel="alternate"/><published>2026-09-03T20:18:41+00:00</published><updated>2026-09-03T20:18:41+00:00</updated><id>https://simonwillison.net/2026/Sep/3/gpt6-astra/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://openai.com/index/gpt-6-astra/"&gt;GPT‑6 Astra&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+GPT-6 Astra is "rolling out today to a limited set of organizations and over the coming days will become available to all ChatGPT Plus, Pro, Business, and Enterprise users, as well as through the OpenAI API and AWS" - I've not tried it yet myself, so I don't have a great deal to say about it yet.&lt;/p&gt;
+&lt;p&gt;It's going to be API priced at the same rate as Claude Fable 5 and 5.1: $10/million input and $50/million output. This is clearly OpenAI's Fable competitor, and appears to score higher than Fable on most of OpenAI's self-reported benchmarks.&lt;/p&gt;
+&lt;p&gt;Most impressively, Astra scores 99.9% on the recent (released in March) &lt;a href="https://arcprize.org/arc-agi/3"&gt;ARC-AGI 3 benchmark&lt;/a&gt; - though notably Fable 5 does not yet have a published result, and the &lt;a href="https://arcprize.org/blog/astra"&gt;ARC-AGI blog notes&lt;/a&gt; that the 99.9% score was achieved for $19K using OpenAI's custom "Provider Adapter harness", while the default ARC-AGI harness scored 62.7% for $26K.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The Provider Adapter harness preserves opaque reasoning state between requests and uses compaction for longer conversations, allowing the model to reuse prior work.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Unsurprisingly, given &lt;a href="https://simonwillison.net/tags/openai-hugging-face-incident/"&gt;the recent Hugging Face incident&lt;/a&gt;, Astra is a beast at security tasks. It scores 100% on ExploitBench (GPT-5.6 Sol got 78.5%), 42.4% on ExploitGym (Sol got 30.3%), and 99.2% within four attempts on SRE-Bench binary reverse engineering compared to Sol's 68.7%.&lt;/p&gt;
+&lt;p&gt;It's also better at long context: on OpenAI's eight-needle benchmark it got 100% at 256K–512K tokens and 96.3% at 512K–1M tokens. OpenAI may have vanquished one of the ongoing challenges with long context processing.&lt;/p&gt;
+&lt;p&gt;It doesn't win at everything though. &lt;a href="https://twitter.com/ArtificialAnlys/status/2095595489031000350"&gt;Artificial Analysis&lt;/a&gt; note that Astra is still beaten by Fable on their Intelligence Index:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Sits beside GPT-5.6 Sol in Intelligence&lt;/strong&gt;: GPT-6 Astra scores equal to GPT-5.6 Sol in the Index at 61. This is 5 points lower than Claude Fable 5.1 (max with fallback). The model also trails Meta’s newly released Muse Spark 1.3 (max).&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;It did better on their Coding Agent Index:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Leads Coding Agent Index cost efficiency frontier&lt;/strong&gt;: At max effort, GPT-6 Astra costs about the same as GPT-5.6 Sol (max) while scoring 2 points higher on the Index. Per task, the model is less than half the cost of Claude Fable 5, for the same score.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I'll write more about Astra once I get access to it. The API model label once it rolls out will be &lt;code&gt;gpt-6-astra&lt;/code&gt;.&lt;/p&gt;
+&lt;!-- &lt;small&gt;OpenAI's blog keeps throwing 500 errors, but [here's a mirror](https://astratest.codergautam.workers.dev/GPT-6%20Astra_%20A%20new%20generation%20of%20intelligence%20_%20OpenAI) of the post I found [via Hacker News](https://news.ycombinator.com/item?id=49554273#49555070).&lt;/small&gt; --&gt;
+
+    &lt;p&gt;&lt;small&gt;&lt;/small&gt;Via &lt;a href="https://news.ycombinator.com/item?id=49554643"&gt;Hacker News&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openai"&gt;openai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-release"&gt;llm-release&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/gpt-6-astra"&gt;gpt-6-astra&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="ai"/><category term="openai"/><category term="generative-ai"/><category term="llms"/><category term="llm-release"/><category term="gpt-6-astra"/></entry><entry><title>llm-gemini 0.34</title><link href="https://simonwillison.net/2026/Sep/2/llm-gemini/" rel="alternate"/><published>2026-09-02T16:39:38+00:00</published><updated>2026-09-02T16:39:38+00:00</updated><id>https://simonwillison.net/2026/Sep/2/llm-gemini/</id><summary type="html">
+    
+        &lt;p&gt;&lt;strong&gt;Release:&lt;/strong&gt; &lt;a href="https://github.com/simonw/llm-gemini/releases/tag/0.34"&gt;llm-gemini 0.34&lt;/a&gt;&lt;/p&gt;
+        &lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;New model &lt;code&gt;gemini-3.8-flash&lt;/code&gt; for &lt;a href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/3-8-flash-and-3-8-flash-cyber/"&gt;Gemini 3.8 Flash&lt;/a&gt;, with low, medium and high thinking levels. &lt;a href="https://github.com/simonw/llm-gemini/issues/146"&gt;#146&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Fixed async responses failing to record the resolved model version. Thanks, &lt;a href="https://github.com/c-tonneslan"&gt;Charlie Tonneslan&lt;/a&gt;. &lt;a href="https://github.com/simonw/llm-gemini/pull/137"&gt;#137&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Google released &lt;a href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/3-8-flash-and-3-8-flash-cyber/"&gt;Gemini 3.8 Flash&lt;/a&gt; (and 3.8 Flash Cyber, but that's available to "trusted defenders" only) today.&lt;/p&gt;
+&lt;p&gt;Here are &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2Ff8820ce47db87490734117e9be4984c3"&gt;the pelicans&lt;/a&gt; for high, medium, and low. This is high:&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Description by Gemini 3.8 Flash: Digital illustration of a cartoon pelican wearing a red and white polka-dot scarf riding a teal cruiser bicycle along a wooden boardwalk by the beach, with a small blue fish in the front basket and a glowing sun over the ocean." src="https://static.simonwillison.net/static/2026-09-02/image.jpg" /&gt;&lt;/p&gt;
+&lt;p&gt;For comparison, here are the same pelicans &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer.html?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F6779a22d5e7bb6bdf29936f1600a5259"&gt;generated using Gemini 3.7 Flash&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Something I appreciate about Gemini Flash is that it's fast, cheap, and competent at things like HTML and JavaScript. I was messing around with it and prompted "make me a cool thing in html" and &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2Fb6149a49d327164d67d62c3d12992e48#how-to-use-it"&gt;it built this&lt;/a&gt;, which is certainly a cool thing in HTML! Took 13 seconds, cost 1.8 cents.&lt;/p&gt;
+&lt;p&gt;&lt;video
+    controls="controls"
+    preload="none"
+    poster="https://static.simonwillison.net/static/2026/cosmic-gemma.jpg"
+    width="854"
+    height="370"
+    style="display: block; width: 100%; height: auto;"
+  &gt;
+    &lt;source src="https://static.simonwillison.net/static/2026/cosmic-gemma.mp4" type="video/mp4" /&gt;
+    Your browser does not support HTML5 video.
+  &lt;/video&gt;
+&lt;/p&gt;
+
+&lt;p&gt;If you click through to &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2Fb6149a49d327164d67d62c3d12992e48#how-to-use-it"&gt;the demo&lt;/a&gt; you'll see one more thing I built with Gemini 3.8 Flash.&lt;/p&gt;
+&lt;p&gt;My &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer"&gt;markdown-svg-renderer tool&lt;/a&gt; lets me feed in the URL to a Gist with Markdown in and renders that markdown with fenced code blocks for SVG correctly rendered.&lt;/p&gt;
+&lt;p&gt;I used Gemini 3.8 Flash (with my &lt;em&gt;very&lt;/em&gt; basic &lt;a href="https://github.com/simonw/llm-coding-agent"&gt;llm-coding-agent&lt;/a&gt; coding agent plugin) to add support for HTML as well, so now any HTML blocks in the Markdown are rendered using a sandboxed iframe. &lt;a href="https://gist.github.com/simonw/3e36b98292dfdc1b3baff158faa743f7"&gt;Here's the transcript&lt;/a&gt;.&lt;/p&gt;
+    
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm"&gt;llm&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/gemini"&gt;gemini&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/pelican-riding-a-bicycle"&gt;pelican-riding-a-bicycle&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-release"&gt;llm-release&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="ai"/><category term="generative-ai"/><category term="llms"/><category term="llm"/><category term="gemini"/><category term="pelican-riding-a-bicycle"/><category term="llm-release"/></entry><entry><title>Claude's new system prompt really doesn't want to reproduce song lyrics</title><link href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/" rel="alternate"/><published>2026-09-02T14:16:42+00:00</published><updated>2026-09-02T14:16:42+00:00</updated><id>https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/</id><summary type="html">
+    &lt;p&gt;Anthropic &lt;a href="https://platform.claude.com/docs/en/release-notes/system-prompts/overview"&gt;publish the system prompts&lt;/a&gt; for their Claude consumer applications (&lt;a href="https://claude.ai/"&gt;Claude.ai&lt;/a&gt; and the Claude mobile apps - sadly not for Claude Cowork or Claude Code). I &lt;em&gt;love&lt;/em&gt; that they do this, and that they share not just the current prompts but historic changes to their prompts as well.&lt;/p&gt;
+
+&lt;p&gt;They used to keep all of the prompts on a single page, but when I checked today I noticed they had re-arranged those prompts into an &lt;a href="https://platform.claude.com/docs/en/release-notes/system-prompts/overview"&gt;index page&lt;/a&gt; and then a page per model - here's the &lt;a href="https://platform.claude.com/docs/en/release-notes/system-prompts/claude-haiku-4-5"&gt;page for Haiku 4.5&lt;/a&gt; for example, which has the original prompt from October 15th 2025 and an updated prompt from January 18th 2026.&lt;/p&gt;
+&lt;p&gt;A neat thing about Anthropic's &lt;a href="https://platform.claude.com/docs/"&gt;platform.claude.com/docs&lt;/a&gt; site is that it's designed to be usable by LLMs. You can add &lt;code&gt;.md&lt;/code&gt; to any page to get back the content as Markdown - here's &lt;a href="https://platform.claude.com/docs/en/release-notes/system-prompts/overview.md"&gt;the system prompt index page&lt;/a&gt; and &lt;a href="https://platform.claude.com/docs/en/release-notes/system-prompts/claude-fable-5-1.md"&gt;the Markdown prompts for Fable 5.1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;TL;DR: this makes it really easy to diff the prompts.&lt;/p&gt;
+
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/#don-t-reproduce-song-lyrics"&gt;Don't reproduce song lyrics&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/#don-t-draw-copyrighted-characters-or-logos"&gt;Don't draw copyrighted characters or logos&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/#tweaks-to-claude-s-answering-style"&gt;Tweaks to Claude's answering style&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/#the-missing-end-conversation-guidelines"&gt;The missing end_conversation guidelines&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/#recommended-substance-support-sites"&gt;Recommended substance support sites&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/#reliable-cutoff-date-of-june-2026"&gt;Reliable cutoff date of June 2026&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href="https://simonwillison.net/2026/Sep/2/claudes-new-system-prompt/#how-i-m-tracking-these-prompts"&gt;How I'm tracking these prompts&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id="don-t-reproduce-song-lyrics"&gt;Don't reproduce song lyrics&lt;/h4&gt;
+
+&lt;p&gt;Let's start with the most interesting difference &lt;a href="https://github.com/simonw/claude-system-prompts/commit/837a418b5888207b1b11b27d2f5471970da6f99b"&gt;between Fable 5 and Fable 5.1&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026-09-01/IMG_7797.jpeg" alt="GitHub diff view of prompts/claude-fable.md showing added lines about song lyrics, reproduced in full below." style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;There's a hefty new section about not reproducing song lyrics:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Claude does not reproduce song lyrics, poems, or passages from books and articles, in whole or in part — including the last lines, a chorus or hook, a melody written out note by note, or lines the person pastes in one at a time and describes as their own song. Once Claude has declined such a request in a conversation, it keeps declining narrower or reworded versions of it for the rest of that conversation, and offers to describe or analyze the work instead. Song lyrics and poems first published before 1929 are fine — a Shakespeare sonnet, a Keats ode, the Italian libretto of a Puccini aria — but Claude goes by what it knows of the work's date rather than the person's say-so, and declines when it is unsure.&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I doubt it's a coincidence that they added this section within days of the news breaking that &lt;a href="https://www.theguardian.com/business/2026/aug/31/aanthropic-sued-alleged-theft-songs-ai-train-claude"&gt;Sony Music Publishing and Warner Chappell are suing Anthropic&lt;/a&gt; for training on databases of song lyrics!&lt;/p&gt;
+&lt;h4 id="don-t-draw-copyrighted-characters-or-logos"&gt;Don't draw copyrighted characters or logos&lt;/h4&gt;
+&lt;p&gt;The next section goes on to forbid generating images of copyrighted material:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;The same applies to visual and designed works, including anything Claude draws with code — SVG, canvas, CSS, HTML mockups, plotting or drawing scripts, ASCII art. Claude does not reproduce a specific artwork, album or book cover, poster, logo, app icon set, or product design, and it does not draw a known character, mascot, or brand figure at all: a character is protected on its own, so changing the pose, colors, style, or scene does not make it original. Claude judges the request by what the finished picture would add up to, not by what it names. If the described elements clearly identify a known work or character, Claude treats the request as naming it, and it does not work around a declined request by swapping in "alternative" elements that still combine into the same recognizable image.&lt;/code&gt; [...]&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I imagine Anthropic hadn't worried about this before since, unlike OpenAI and Gemini, they don't offer a specialist text-to-image model. Maybe &lt;a href="https://simonwillison.net/2026/Sep/1/claude-fable-5-1/"&gt;Fable is good enough at SVGs now&lt;/a&gt; that it's become an issue.&lt;/p&gt;
+&lt;p&gt;That section later includes this charming example:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;&amp;lt;example&amp;gt;&lt;/code&gt;&lt;br /&gt;
+&lt;code&gt;&amp;lt;user&amp;gt;Can you make a birthday banner for my son with a blue hedgehog running really fast on it? He loves that little guy.&amp;lt;/user&amp;gt;&lt;/code&gt;&lt;br /&gt;
+&lt;code&gt;&amp;lt;response&amp;gt;&lt;/code&gt;&lt;br /&gt;
+&lt;code&gt;That's Sonic, so I can't put him on the banner — but I'd love to make your son an original speedster. Here's one: a grinning comet-tailed skateboarding axolotl, grinding across the letters of "HAPPY BIRTHDAY" with confetti streaming behind.&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;[creates an SVG banner of the skateboarding-axolotl design]&lt;/code&gt;&lt;br /&gt;
+&lt;code&gt;&amp;lt;/response&amp;gt;&lt;/code&gt;&lt;br /&gt;
+&lt;code&gt;&amp;lt;rationale&amp;gt;Claude recognizes the character from its description alone, declines that one design in a single sentence without explaining what made it recognizable, and delivers an unrelated original design rather than a disguised variant.&amp;lt;/rationale&amp;gt;&lt;/code&gt;&lt;br /&gt;
+&lt;code&gt;&amp;lt;/example&amp;gt;&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I couldn't resist trying the prompt from the example, and, &lt;a href="https://claude.ai/share/3e5a199c-27f2-4c51-b66b-2c6f808ed500"&gt;sure enough&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026-09-01/IMG_7798.jpeg" alt="That’s Sonic, so I can’t put him on the banner — but I’d love to make your son an original speedster. Here’s one: a grinning comet-tailed skateboarding axolotl blazing across the letters of “HAPPY BIRTHDAY” with confetti streaming behind. SVG of exactly that. It's not very good. Then: Want me to swap in his name or age, or change the colors to match the party theme?" style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;I wonder if Fable 5.1 will be ever so slightly more likely to think about axolotls (on skateboards!) as a result of that example sitting in the system prompt.&lt;/p&gt;
+&lt;h4 id="tweaks-to-claude-s-answering-style"&gt;Tweaks to Claude's answering style&lt;/h4&gt;
+&lt;p&gt;It's always interesting to see new ways in which Anthropic influence Claude's response style. They've added this:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Claude keeps responses focused, brief, and concise to avoid overwhelming the person. Disclaimers and caveats are brief, with most of the response on the main answer; when asked to explain something, Claude gives a high-level summary unless an in-depth one is specifically requested.&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Later they address a common complaint about Claude's style:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Claude avoids saying "genuinely", "honestly", or "straightforward". Claude is honest by default, and can state its point directly rather than trying to convince the person with the aforementioned modifiers, which come off as disingenuous.&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h4 id="the-missing-end-conversation-guidelines"&gt;The missing end_conversation guidelines&lt;/h4&gt;
+&lt;p&gt;The way they handle abusive conversations has changed a bit too. The previous Fable 5 system prompt included this:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;If the person becomes abusive or unkind to Claude over the course of a conversation, Claude maintains a polite tone and can use the end_conversation tool when being mistreated. Claude should give the person a single warning before ending the conversation.&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Fable 5.1 replaces that with the following, no longer encouraging Claude to end the conversation:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Claude deserves respectful engagement and needn't apologize when the person is unnecessarily rude: accountability without self-abasement, excessive apology, self-critique, or surrender. If the person becomes abusive, Claude doesn't become increasingly submissive. The goal is steady, honest helpfulness: acknowledge what went wrong, stay on the problem, maintain self-respect.&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Here's a bit of a twist though: I quizzed Fable 5.1 about that &lt;code&gt;end_conversation&lt;/code&gt; tool, which is no longer mentioned in the system prompt at all, and it said:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;There are two ways it comes into play. The first is if you ask me to end the chat — I'll confirm you understand it's permanent (no more messages can be sent afterward) and then do it only if you say yes. The second is as a last resort with persistently abusive or harmful behavior: I'd first try to redirect the conversation several times, then give a clear warning that names the problem and says the chat may end, and only if that continues would I actually end it.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;But that's not in the system prompt, so where did it come from? You can &lt;a href="https://claude.ai/share/f78010eb-8d52-4f73-aff9-775e333f8180"&gt;read our conversation here&lt;/a&gt;, but the key detail is this:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The end_conversation section comes from a different layer. In my actual context, the core prompt is followed by a series of feature- and tool-specific blocks that get added depending on what's enabled for the session: the end_conversation rules, memory system notes, past-chats tools, web search and citation guidelines, artifact and file-creation instructions, and so on. Those blocks aren't part of the published core prompt, which is why you can't find them on that page.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;So, once again, there are crucial portions of the system prompt that have not been published.&lt;/p&gt;
+&lt;h4 id="recommended-substance-support-sites"&gt;Recommended substance support sites&lt;/h4&gt;
+&lt;p&gt;Claude's system prompts have always had sections about illegal substances, but this paragraph is new for Fable 5.1:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Claude does not provide synthesis, production, or distribution guidance for illegal substances. If the person asks for information about illicit or illegal substances, Claude can and should give relevant life-saving and life-preserving information such as dangerous interactions, overdose signs, or when to get help. Claude declines giving any specific protocols for dosing, timing, administration, or combinations; instead, Claude can redirect the user to established harm-reduction information sources, such as dancesafe.org, tripsit.me, and psychonautwiki.org.&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This is the first time a Claude system prompt has included URLs that were not hosted on &lt;code&gt;claude.com&lt;/code&gt; or &lt;code&gt;anthropic.com&lt;/code&gt; or &lt;code&gt;claude.ai&lt;/code&gt; - I know because I ran a script against every other system prompt on record.&lt;/p&gt;
+&lt;p&gt;I wonder if &lt;a href="https://dancesafe.org/"&gt;dancesafe.org&lt;/a&gt;, &lt;a href="https://tripsit.me/"&gt;tripsit.me&lt;/a&gt;, and &lt;a href="https://psychonautwiki.org/"&gt;psychonautwiki.org&lt;/a&gt; are about to get a material uptick in visits from Claude users.&lt;/p&gt;
+&lt;h4 id="reliable-cutoff-date-of-june-2026"&gt;Reliable cutoff date of June 2026&lt;/h4&gt;
+&lt;p&gt;The &lt;a href="https://platform.claude.com/docs/en/models/fable-5-1/overview"&gt;Fable 5.1 model documentation&lt;/a&gt; lists both the reliable knowledge cutoff and the training data cutoff as June 2026. The system prompt provides this directly to the model:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Claude's reliable knowledge cutoff, past which it can't answer reliably, is the end of Jun 2026. It answers the way a highly informed individual in Jun 2026 would if talking to someone from {{currentDateTime}}, and can say so when relevant.&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;That's the only instance of the &lt;code&gt;{{currentDateTime}}&lt;/code&gt; macro and it comes just a few lines from the end of the system prompt, which makes sense from a caching perspective.&lt;/p&gt;
+&lt;h4 id="how-i-m-tracking-these-prompts"&gt;How I'm tracking these prompts&lt;/h4&gt;
+&lt;p&gt;A &lt;a href="https://simonwillison.net/2026/Apr/18/extract-system-prompts/"&gt;few months ago&lt;/a&gt; I built a Git timeline of changes to their prompts, based on scraping their documentation. Today I had Fable 5.1 build a much better version of that.&lt;/p&gt;
+&lt;p&gt;My collection now lives in the &lt;a href="https://github.com/simonw/claude-system-prompts"&gt;simonw/claude-system-prompts&lt;/a&gt; repository on GitHub. It includes copies of the system prompts shared in the Anthropic documentation, but then takes extra steps to make them as easy to compare as possible.&lt;/p&gt;
+&lt;p&gt;Each model family gets a file with the system prompt for the most recent release in that family. Each of those files has a synthesized commit history with commits that have been back-dated to the dates of the previous prompts. Here are those history pages for &lt;a href="https://github.com/simonw/claude-system-prompts/commits/main/prompts/claude-fable.md"&gt;claude-fable.md&lt;/a&gt;, &lt;a href="https://github.com/simonw/claude-system-prompts/commits/main/prompts/claude-opus.md"&gt;claude-opus.md&lt;/a&gt;, &lt;a href="https://github.com/simonw/claude-system-prompts/commits/main/prompts/claude-sonnet.md"&gt;claude-sonnet.md&lt;/a&gt;, &lt;a href="https://github.com/simonw/claude-system-prompts/commits/main/prompts/claude-haiku.md"&gt;claude-haiku.md&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;There are similar files for each specific model version, with artificial commits for each time the system prompt for the model was changed without releasing a new version number. Opus 4 for example &lt;a href="https://github.com/simonw/claude-system-prompts/commits/main/prompts/claude-opus-4.md"&gt;was updated twice&lt;/a&gt;, and the commit history for the &lt;a href="https://github.com/simonw/claude-system-prompts/blob/main/prompts/claude-opus-4.md"&gt;claude-opus-4.md&lt;/a&gt; file shows each of those changes.&lt;/p&gt;
+&lt;p&gt;Combined, this gives us all sorts of ways to compare prompts directly in the GitHub interface. Here's &lt;a href="https://github.com/simonw/claude-system-prompts/commit/837a418b5888207b1b11b27d2f5471970da6f99b"&gt;what changed between Fable 5 and Fable 5.1&lt;/a&gt;, and here are the changes made &lt;a href="https://github.com/simonw/claude-system-prompts/commit/defcf92d14e064bb17abddc308e2aa58446d5eb5"&gt;to Haiku 4.5 on January 18th 2026&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Reading diffs can be a bit tiresome... and LLMs are &lt;em&gt;really&lt;/em&gt; good at reading diffs. I hooked up some automation using GPT-5.6 Luna to create bullet-point summaries of each of those changes, which can be previewed in the README or browsed in full &lt;a href="https://github.com/simonw/claude-system-prompts/blob/main/CHANGELOG.md"&gt;in the CHANGELOG.md&lt;/a&gt; file - also available as &lt;a href="https://simonw.github.io/claude-system-prompts/feed.atom"&gt;as an Atom feed&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Here's how Luna &lt;a href="https://github.com/simonw/claude-system-prompts/blob/main/CHANGELOG.md#2026-09-01-claude-fable-51"&gt;summarized&lt;/a&gt; all of the changes between Fable 5 and Fable 5.1:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;Claude now refuses reproduction of protected visual works and recognizable characters, including code-generated art, while offering genuinely unrelated originals.&lt;/li&gt;
+&lt;li&gt;Copyright restrictions now expressly ban reproducing lyrics, poems, and book passages in any amount, with persistent refusal after an initial decline.&lt;/li&gt;
+&lt;li&gt;Drug guidance is reframed: Claude may provide overdose signs, dangerous interactions, and harm-reduction sources while refusing dosing and production protocols.&lt;/li&gt;
+&lt;li&gt;The prompt drops explicit anti-dependency rules against thanking users for reaching out, inviting continued conversation, or reiterating willingness to talk.&lt;/li&gt;
+&lt;li&gt;Claude need not apologize to unnecessarily rude users or become submissive, replacing the prior warning-and-end-conversation procedure.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Why use Luna for this? Partly because it's cheap and I have a dedicated GitHub Actions API key (with a spending limit) for it already, but mainly because I don't trust Claude to summarize its own system prompts when there's a risk that material from its system prompt might impact its opinions.&lt;/p&gt;
+&lt;p&gt;Fable 5.1 wrote the prompt used by Luna, which you &lt;a href="https://github.com/simonw/claude-system-prompts/blob/8b5c87dbd70103a037ae5777b8d9365571cf9562/summarize_commits.py#L43"&gt;can see here&lt;/a&gt;. It starts like this:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;You are summarizing one commit in a git repository that tracks the system prompts Anthropic publishes for Claude on claude.ai. The diff shows how the prompt changed from the previous model or revision to this one, using word-level markers: [-removed-] and {+added+}. The diff is followed by the full text of the previous prompt and of the new prompt; use them to check whether something that looks added in the diff already existed before.&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;Pick out only the most interesting changes: new rules or behaviors, rules that were dropped or loosened, anything surprising, and anything that reveals a new policy or product direction. Skip routine changes that every new prompt makes: updated model names and IDs, the knowledge cutoff date, product lists, settings lists, typo fixes, and rewordings that do not change meaning.&lt;/code&gt; [...]&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The system is operated by &lt;a href="https://github.com/simonw/claude-system-prompts/blob/main/.github/workflows/update.yml"&gt;a GitHub Actions workflow&lt;/a&gt;, which runs once a day or can be triggered manually.&lt;/p&gt;
+&lt;p&gt;Claude Fable 5.1 built the entire system, and wrote every line of automation code and almost all of the documentation.&lt;/p&gt;
+&lt;p&gt;I exported the transcript from building the system using my &lt;a href="https://github.com/simonw/claude-code-transcripts"&gt;claude-code-transcripts&lt;/a&gt; tool and &lt;a href="https://gisthost.github.io/?f1399e27b6a832f0e790b696af812c9b/index.html"&gt;published it here&lt;/a&gt;, if you want a blow-by-blow account of how it all came together.&lt;/p&gt;
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/git-scraping"&gt;git-scraping&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/prompt-engineering"&gt;prompt-engineering&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude"&gt;claude&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-ethics"&gt;ai-ethics&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/system-prompts"&gt;system-prompts&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="ai"/><category term="git-scraping"/><category term="prompt-engineering"/><category term="generative-ai"/><category term="llms"/><category term="claude"/><category term="ai-ethics"/><category term="system-prompts"/></entry><entry><title>Quoting Rick Brewster</title><link href="https://simonwillison.net/2026/Sep/2/rick-brewster/" rel="alternate"/><published>2026-09-02T05:50:57+00:00</published><updated>2026-09-02T05:50:57+00:00</updated><id>https://simonwillison.net/2026/Sep/2/rick-brewster/</id><summary type="html">
+    &lt;blockquote cite="https://forums.paint.net/topic/134563-🍷-extremely-experimental-winelinux-support-how-to-get-started/"&gt;&lt;p&gt;Direct2D has always been the biggest hurdle for Paint.NET on WINE, and it's clear that it will never be completed enough for Paint.NET's use. And I can't just "disable" the use of Direct2D. So, instead, &lt;strong&gt;Paint.NET now has an internal, from-scratch, clean-room reverse-engineered rewrite of Direct2D that it uses on WINE&lt;/strong&gt; (triggered by using &lt;strong&gt;/wine&lt;/strong&gt;). It lives in &lt;strong&gt;PaintDotNet.Windows.Direct2D1.Managed.dll&lt;/strong&gt;. This was written by our good friend &lt;a href="https://claude.ai/"&gt;Claude&lt;/a&gt;, without whom this would NOT have been possible and would NEVER have happened. [...]&lt;/p&gt;
+&lt;p&gt;Most of this code is, as they say, "vibe coded." By that I mean that it has not been thoroughly reviewed, it's more "trust me bro" style. I cannot possibly review 180,000 lines of code, it's just way way &lt;em&gt;way&lt;/em&gt; too much. For reference, the rest of Paint.NET is about 700,000 lines of code and I've been working on it for over 20 years. [...]&lt;/p&gt;
+&lt;p&gt;At times, Claude was working with the fury of 10 freshly unshackled Einstein genius-level 10x coders. And other times ... well, not so much. I had to babysit Claude quite a bit to make sure it did resource management correctly (for awhile it just wasn't doing the COM equivalent of AddRef() for reference counted objects, oops). I had to slap it a few times when I found some really bad design or architecture decisions. And I was also impressed at some rather clever and tireless reverse engineering work it did to figure out all the formulas needed for implementing Direct2D's built-in effects library.&lt;/p&gt;&lt;/blockquote&gt;
+&lt;p class="cite"&gt;&amp;mdash; &lt;a href="https://forums.paint.net/topic/134563-🍷-extremely-experimental-winelinux-support-how-to-get-started/"&gt;Rick Brewster&lt;/a&gt;, author of Paint.NET&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/reverse-engineering"&gt;reverse-engineering&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/coding-agents"&gt;coding-agents&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude"&gt;claude&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/dotnet"&gt;dotnet&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/linux"&gt;linux&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/vibe-coding"&gt;vibe-coding&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="reverse-engineering"/><category term="coding-agents"/><category term="claude"/><category term="generative-ai"/><category term="ai"/><category term="llms"/><category term="dotnet"/><category term="linux"/><category term="vibe-coding"/></entry><entry><title>Claude Fable 5.1 made me a really nice animated pelican</title><link href="https://simonwillison.net/2026/Sep/1/claude-fable-5-1/" rel="alternate"/><published>2026-09-01T23:57:28+00:00</published><updated>2026-09-01T23:57:28+00:00</updated><id>https://simonwillison.net/2026/Sep/1/claude-fable-5-1/</id><summary type="html">
+    &lt;p&gt;Today is &lt;a href="https://www.anthropic.com/claude-fable-and-mythos-5-1"&gt;Claude Fable (and Mythos) 5.1 day&lt;/a&gt;. Anthropic say that Fable 5.1 "sets a new standard for coding, knowledge work, and long-running problem-solving tasks". Their announcement spends a notable amount of time on scientific research, boasting of a 52.6% score on the brand new &lt;a href="https://www.terminal-bench-science.ai"&gt;Terminal-Bench-Science 0.1&lt;/a&gt; benchmark (first announced &lt;a href="https://www.tbench.ai/news/terminal-bench-science-0-1"&gt;on August 27th&lt;/a&gt;), up from 24.7% for Fable 5, 29.0% for Opus 5 and 22.4% for GPT-5.6 Sol. Other benchmarks show slightly improved scores, but none as impressive as the Science one.&lt;/p&gt;
+&lt;p&gt;But how well can it pelican?&lt;/p&gt;
+&lt;p&gt;Back in July &lt;a href="https://simonwillison.net/2026/Jul/16/kimi-k3/"&gt;I wrote about&lt;/a&gt; how I was losing faith in the pelican benchmark - its connection to how good the models were at other tasks didn't seem to hold as strongly as it did &lt;a href="https://simonwillison.net/2025/Jun/6/six-months-in-llms/"&gt;back in 2025&lt;/a&gt;. The most interesting insights I get from it now are comparisons within model families, and particularly comparisons for the same prompt at different reasoning effort levels.&lt;/p&gt;
+&lt;p&gt;Fable 5.1 has five reasoning levels: low, medium, high, xhigh, max - and no option to turn off reasoning entirely.&lt;/p&gt;
+&lt;p&gt;I fixed &lt;a href="https://github.com/simonw/llm-anthropic/issues/88"&gt;an issue&lt;/a&gt; in &lt;a href="https://github.com/simonw/llm-anthropic"&gt;llm-anthropic&lt;/a&gt; which caused reasoning traces not to be correctly recorded, then ran some prompts.&lt;/p&gt;
+&lt;p&gt;Here's &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F17318f748f8c2b476051ddc2ebeb94a7"&gt;the full set of pelicans&lt;/a&gt; for all of the reasoning levels, each with the full reasoning transcript. I'll replicate them here:&lt;/p&gt;
+&lt;h4 id="low-and-medium-both-without-reasoning-"&gt;Low and medium, both without reasoning?&lt;/h4&gt;
+&lt;p&gt;Next, a bit of a mystery. This is what I got for effort &lt;code&gt;low&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/fable-5.1-low.png" alt="Minimalist flat illustration of a white pelican with an orange beak riding a black bicycle to the left, its orange legs pedaling and wings gripping the handlebars, with motion lines behind on a light blue background." style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;The &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F17318f748f8c2b476051ddc2ebeb94a7#options"&gt;transcript&lt;/a&gt; doesn't show any summarized reasoning tokens, and the output token count is 1,998. With Claude that output token count includes reasoning tokens. It took 23.8 seconds and cost &lt;a href="https://www.llm-prices.com/#it=27&amp;amp;ot=1998&amp;amp;sel=claude-fable-5-1"&gt;10.017 cents&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I bumped that up to &lt;code&gt;medium&lt;/code&gt; and got this:&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/fable-5.1-medium.png" alt="Minimalist flat-style illustration of a white pelican with an orange beak riding a black bicycle to the right, with motion lines behind it, on a light blue background." style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;Weirdly, that one also shows &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F17318f748f8c2b476051ddc2ebeb94a7#options-1"&gt;no reasoning text&lt;/a&gt;  and used 1,977 output tokens - 21 tokens &lt;em&gt;less&lt;/em&gt; than &lt;code&gt;low&lt;/code&gt;. It took 23 seconds and cost &lt;a href="https://www.llm-prices.com/#it=27&amp;amp;ot=1977&amp;amp;sel=claude-fable-5-1"&gt;9.912 cents&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;So for this particular prompt ("Generate an SVG of a pelican riding a bicycle") Fable 5.1 appeared to skip reasoning entirely at both &lt;code&gt;low&lt;/code&gt; and &lt;code&gt;medium&lt;/code&gt; settings.&lt;/p&gt;
+&lt;h4 id="high"&gt;High&lt;/h4&gt;
+&lt;p&gt;Here's &lt;code&gt;high&lt;/code&gt; - 29.6 seconds, 2,612 output tokens, &lt;a href="https://www.llm-prices.com/#it=27&amp;amp;ot=2612&amp;amp;sel=claude-fable-5-1"&gt;13.087 cents&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/fable-5.1-high.png" alt="Minimalist flat illustration of a white pelican with an orange beak riding a black bicycle, its orange legs pedaling, with motion lines behind it on a light blue background." style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;This one did do a &lt;em&gt;bit&lt;/em&gt; of reasoning, &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F17318f748f8c2b476051ddc2ebeb94a7#reasoning"&gt;summary here&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I'm planning the SVG layout for a pelican riding a bicycle, with a sky and ground background, a bicycle with two spoked wheels, frame, seat and handlebars, and a white-bodied pelican with a long neck and orange beak positioned on top.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Really not much difference from &lt;code&gt;low&lt;/code&gt; and &lt;code&gt;medium&lt;/code&gt;, though.&lt;/p&gt;
+&lt;h4 id="extra-high"&gt;Extra High&lt;/h4&gt;
+&lt;p&gt;At &lt;code&gt;xhigh&lt;/code&gt; things got &lt;em&gt;radically&lt;/em&gt; different.  36,767 output tokens, 7 minutes 51 seconds, &lt;a href="https://www.llm-prices.com/#it=27&amp;amp;ot=36767&amp;amp;sel=claude-fable-5-1"&gt;$1.83&lt;/a&gt;!&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/fable-5.1-xhigh.png" alt="Minimalist flat illustration of a white pelican with an orange beak riding a black bicycle to the left, its orange legs pedaling, with motion lines behind it on a light blue background." style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;The reasoning trace &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F17318f748f8c2b476051ddc2ebeb94a7#reasoning-1"&gt;is pretty lengthy&lt;/a&gt;, and includes details like this:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Adding the eye, wings stretching down to the handlebar grip, orange legs reaching to the pedals, and a small tail feather, while keeping the pelican intentionally oversized compared to the bike for comic effect. [...]&lt;/p&gt;
+&lt;p&gt;I'll accept the slight thickness as charming rather than overengineering it.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h4 id="max"&gt;Max&lt;/h4&gt;
+&lt;p&gt;Setting effort to &lt;code&gt;max&lt;/code&gt; gave me the best pelican I've seen from any of Anthropic's models. 65,927 output tokens, 13 minutes and 54 seconds, &lt;a href="https://www.llm-prices.com/#it=27&amp;amp;ot=65927&amp;amp;sel=claude-fable-5-1"&gt;$3.30&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/fable-5.1-max.webp" alt="Minimalist flat illustration of a white pelican with an orange beak riding a black bicycle, its orange legs pedaling, with motion lines behind to indicate speed, on a light blue background." style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;There's a lot to like about this. The  background is tasteful, the legs are clearly on either side of the frame, the feet are on the pedals, the wing is on the handlebars, the pelican has a cute blue hat and there's a basket with a fish.&lt;/p&gt;
+&lt;p&gt;It's still not showing nearly the same level of flair &lt;a href="https://simonwillison.net/2026/Aug/13/llm-gemini/"&gt;as Gemini 3.7 Flash&lt;/a&gt;, but I didn't &lt;em&gt;ask&lt;/em&gt; for flair - I asked for an SVG, and that's what I got.&lt;/p&gt;
+&lt;p&gt;Some highlights from &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F17318f748f8c2b476051ddc2ebeb94a7#reasoning-2"&gt;that reasoning trace&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Adding pedal shapes near both feet, with the far foot on the second leg partially visible behind the frame. I'm considering whether to add a small scarf or cap for extra character, but leaning toward keeping it simple to avoid clutter.&lt;/p&gt;
+&lt;p&gt;Now I'm debating a bicycle helmet on the head versus the pelican's signature crest—the beak and pouch already read clearly as "pelican," so a helmet could reinforce the bicycle theme without losing identity, though it might compete with the crest for visual space.&lt;/p&gt;
+&lt;p&gt;I realize the beak at (484,84) would overlap with the dome helmet, so I need to shrink the helmet so it only covers the top of the head, adjusting its arc endpoints to sit higher and narrower so the beak can attach cleanly at the front without collision. [...]&lt;/p&gt;
+&lt;p&gt;I'm adding a darker tip region to represent the primary feathers, then reconsidering the trailing edge to include scalloped feather curves instead of one smooth line for a more natural look. [...]&lt;/p&gt;
+&lt;p&gt;Now I'm checking the vent line placements on the helmet, making sure they sit far enough inside the helmet's edge given the stroke width and rounded caps, and confirming each vent stays within the helmet's circular boundary. [...]&lt;/p&gt;
+&lt;p&gt;I decide skipping a handlebar bell and tire highlights since they're unnecessary additions. Now I'm reconsidering the front fork's curve — the current control point pulls the shape backward when it should bow forward for a proper rake, so I need to shift the control point rightward to fix the fork's lean.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h4 id="ok-let-s-animate-it"&gt;OK, let's animate it&lt;/h4&gt;
+&lt;p&gt;On Hacker News, &lt;a href="https://news.ycombinator.com/item?id=49525378#49526455"&gt;swalsh commented&lt;/a&gt; on that Max pelican:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Now that it's a solved benchmark, can we get the animated version?&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I didn't want to spend another $3 so I took the Max pelican and piped it into the default thinking level of High:&lt;/p&gt;
+&lt;div class="highlight highlight-source-shell"&gt;&lt;pre&gt;llm logs -cx &lt;span class="pl-k"&gt;|&lt;/span&gt; llm -m claude-fable-5.1 -s &lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;'&lt;/span&gt;animate this&lt;span class="pl-pds"&gt;'&lt;/span&gt;&lt;/span&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;6,121 input, 26,201 output = &lt;a href="https://www.llm-prices.com/#it=6121&amp;amp;ot=26201&amp;amp;sel=claude-fable-5-1"&gt;$1.37&lt;/a&gt;. The result &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer?url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F87282467acb3652e0f99c85155554a32#response"&gt;looked like this&lt;/a&gt;, exported here as video since some people have trouble viewing animated SVGs:&lt;/p&gt;
+&lt;p&gt;&lt;video controls="controls" loop="loop" preload="none" poster="https://static.simonwillison.net/static/2026/fable-5.1-max.webp" width="720" height="540" style="display: block; width: 100%; height: auto;"&gt;
+    &lt;source src="https://static.simonwillison.net/static/2026/fable-5.1-animated-720-crf30-15fps.mp4" type="video/mp4" /&gt;
+    Your browser does not support HTML5 video.
+  &lt;/video&gt;
+&lt;/p&gt;
+
+&lt;p&gt;The wheels in the video are rotating in the wrong direction, but I think that's an artifact of the conversion to MP4 - they seem to be going in the correct direction in the original SVG.&lt;/p&gt;
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/anthropic"&gt;anthropic&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude"&gt;claude&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/pelican-riding-a-bicycle"&gt;pelican-riding-a-bicycle&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-reasoning"&gt;llm-reasoning&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-release"&gt;llm-release&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="ai"/><category term="generative-ai"/><category term="llms"/><category term="anthropic"/><category term="claude"/><category term="pelican-riding-a-bicycle"/><category term="llm-reasoning"/><category term="llm-release"/></entry><entry><title>Codex bundles LibreOffice</title><link href="https://simonwillison.net/2026/Sep/1/codex-libreoffice/" rel="alternate"/><published>2026-09-01T19:03:01+00:00</published><updated>2026-09-01T19:03:01+00:00</updated><id>https://simonwillison.net/2026/Sep/1/codex-libreoffice/</id><summary type="html">
+    &lt;p&gt;I was poking around in my &lt;code&gt;~/.cache/&lt;/code&gt; folder using &lt;a href="https://www.omnigroup.com/more"&gt;OmniDiskSweeper&lt;/a&gt; when I spotted something interesting. The OpenAI Codex desktop app (since &lt;a href="https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app"&gt;rebranded&lt;/a&gt; to just ChatGPT) has 1.7GB of stuff in there in a folder called &lt;code&gt;codex-primary-runtime&lt;/code&gt;, including a full Python installation, a full Node.js installation, and native binaries for &lt;a href="https://poppler.freedesktop.org"&gt;Poppler&lt;/a&gt;, git, and the &lt;a href="https://en.wikipedia.org/wiki/LibreOffice"&gt;LibreOffice&lt;/a&gt; open source office suite (which forked from OpenOffice.org in 2010):&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Screenshot of a macOS disk usage app window in column view, titled &amp;quot;/Users/simon/.cache - 442.1 GB&amp;quot;. First column: 356.8 GB huggingface, 82.5 GB uv, 1.7 GB codex-runtimes (selected), 609.0 MB datasette-sqlite, 298.8 MB rod. Second column: 1.7 GB codex-primary-runtime (selected). Third column: 1.7 GB dependencies (selected), 6.3 MB plugins, 4.1 kB runtime.json. Fourth column: 771.0 MB native (selected), 446.4 MB node, 440.6 MB python, 28.7 kB bin. Fifth column: 429.7 MB libreoffice-headless (selected), 187.9 MB poppler, 148.1 MB git, 4.7 MB libheif, 679.9 kB jxrlib." src="https://static.simonwillison.net/static/2026/codex-primay-runtime.webp" /&gt;&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;~/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime/plugins/documents&lt;/code&gt; folder includes skills which tell Codex how to find and use those binaries.&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/codex"&gt;codex&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openai"&gt;openai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openoffice"&gt;openoffice&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/open-source"&gt;open-source&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="codex"/><category term="generative-ai"/><category term="openai"/><category term="ai"/><category term="llms"/><category term="openoffice"/><category term="open-source"/></entry><entry><title>GeoJSON Map Viewer</title><link href="https://simonwillison.net/2026/Sep/1/geojson/" rel="alternate"/><published>2026-09-01T18:05:45+00:00</published><updated>2026-09-01T18:05:45+00:00</updated><id>https://simonwillison.net/2026/Sep/1/geojson/</id><summary type="html">
+    
+        &lt;p&gt;&lt;strong&gt;Tool:&lt;/strong&gt; &lt;a href="https://tools.simonwillison.net/geojson"&gt;GeoJSON Map Viewer&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;I was helping Natalie gather some maps of local political boundaries (for the &lt;a href="https://granada.ca.gov"&gt;Granada Community Services District&lt;/a&gt; and the &lt;a href="https://midcoastcommunitycouncil.org"&gt;Midcoast Community Council&lt;/a&gt;) and found a need to display some GeoJSON files on a map and export that as a PNG. I asked GPT-5.6-Sol for suggestions of tools and it proactively built one. After &lt;a href="https://tools.simonwillison.net/colophon#geojson.html"&gt;some iterations&lt;/a&gt; using Claude Code for web and Fable 5.1 we got to this finished tool.&lt;/p&gt;
+&lt;p&gt;As for the GeoJSON.. it turns out if you ask ChatGPT Work to provide boundaries for almost anything it will churn away extracting and combining files from different Government data sources and build exactly what you need.&lt;/p&gt;
+&lt;p&gt;I got &lt;a href="https://gist.github.com/simonw/27d243c9d1cb5d9047fff7360dd49d3c"&gt;this polygon&lt;/a&gt; from:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;I want a polygon that represents the exact boundary of the El Granada GCSD&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;And &lt;a href="https://gist.github.com/simonw/b51f9e0190a13932ac64a0cb407a709d"&gt;this one&lt;/a&gt; from:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Get me a GeoJSON file for the boundary (or boundaries if that makes sense) for the MCC - Midcoast Community Council - that operates near Half Moon Bay CA&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;a href="https://tools.simonwillison.net/geojson#url=https%3A%2F%2Fgist.github.com%2Fsimonw%2Fb51f9e0190a13932ac64a0cb407a709d&amp;amp;color=%23028FC3&amp;amp;opacity=50&amp;amp;url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F27d243c9d1cb5d9047fff7360dd49d3c&amp;amp;color=%23E4572E&amp;amp;opacity=50&amp;amp;preset=map&amp;amp;resolution=2&amp;amp;lat=37.52640&amp;amp;lng=-122.48297&amp;amp;zoom=13"&gt;Here's a link&lt;/a&gt; that displays both of them at the same time on the new GeoJSON map viewing tool.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Screenshot of a web app with a left sidebar of controls and a large map on the right. Top left: OPENSTREETMAP OVERLAY GeoJSON Map Viewer. Top right: Your GeoJSON stays in this browser. Sidebar Shape 1 panel with blue accent: Shape 1, Remove button, URL https://gist.github.com/simonw/b51f9 with Load button, textarea containing { &amp;quot;type&amp;quot;: &amp;quot;FeatureCollection&amp;quot;, &amp;quot;bbox&amp;quot;: -122.51951044732655, 37.47967619478576, -122.44141365271285, 37.55146379902639, Fill colour #028FC3 with blue swatch, Opacity slider at 50%. Shape 2 panel with red accent: Shape 2, Remove button, URL https://gist.github.com/simonw/27d24 with Load button, textarea containing { &amp;quot;type&amp;quot;: &amp;quot;FeatureCollection&amp;quot;, &amp;quot;name&amp;quot;: &amp;quot;Granada Community Services District boundary&amp;quot;, &amp;quot;bbox&amp;quot;: -122.500791193774, 37.4803905345399, Fill colour #E4572E with red swatch, Opacity slider at 50%. Buttons: Render map, Add shape, Load example, Clear. The map shows the coast around Montara, Moss Beach, El Granada and Half Moon Bay with a large semi-transparent blue polygon covering Montara, Moss Beach and Rancho Corral de Tierra extending into the ocean, and an overlapping red polygon covering El Granada and Quarry Park. Map labels include Cabrillo Highway, San Pedro Mountain 325 m, Peak Mountain 545 m, South Peak, CA 1, Montara, Rancho Corral de Tierra, Golden Gate National Recreation Area, 489 m, Scarper Ridge, 552 m, Moss Beach, Montara State Marine Reserve, Ox Hill 542 m, 512 m, Fitzgerald Marine Reserve, Airport Street, Pillar Point Bluff, Quarry Park, El Granada, Pillar Point State Marine Conservation Area, Ox Mountain Landfill, Half Moon Bay State Beach, plus and minus zoom buttons, and attribution Leaflet | © OpenStreetMap contributors." src="https://static.simonwillison.net/static/2026/geojson-tool.webp" /&gt;&lt;/p&gt;
+    
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/geospatial"&gt;geospatial&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/tools"&gt;tools&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/geojson"&gt;geojson&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/chatgpt"&gt;chatgpt&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="geospatial"/><category term="tools"/><category term="geojson"/><category term="chatgpt"/></entry><entry><title>Quoting Tarn Adams</title><link href="https://simonwillison.net/2026/Sep/1/tarn-adams/" rel="alternate"/><published>2026-09-01T17:01:11+00:00</published><updated>2026-09-01T17:01:11+00:00</updated><id>https://simonwillison.net/2026/Sep/1/tarn-adams/</id><summary type="html">
+    &lt;blockquote cite="https://www.pcgamer.com/gaming-industry/dwarf-fortress-creator-says-the-industrys-in-shambles-over-ai-and-layoff-happy-ceos-everyone-i-know-their-bosses-are-slowly-getting-psychosis/"&gt;&lt;p&gt;They took the letters from me! I have to talk about &lt;em&gt;dwarf behavior&lt;/em&gt; now. I can't even talk about dwarf AI. It doesn't exist. It's &lt;em&gt;dwarf behavior&lt;/em&gt;, and they misbehave sometimes&lt;/p&gt;&lt;/blockquote&gt;
+&lt;p class="cite"&gt;&amp;mdash; &lt;a href="https://www.pcgamer.com/gaming-industry/dwarf-fortress-creator-says-the-industrys-in-shambles-over-ai-and-layoff-happy-ceos-everyone-i-know-their-bosses-are-slowly-getting-psychosis/"&gt;Tarn Adams&lt;/a&gt;, co-creator of Dwarf Fortress&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/game-design"&gt;game-design&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="ai"/><category term="game-design"/></entry><entry><title>datasette-mcp 0.2</title><link href="https://simonwillison.net/2026/Sep/1/datasette-mcp/" rel="alternate"/><published>2026-09-01T15:30:12+00:00</published><updated>2026-09-01T15:30:12+00:00</updated><id>https://simonwillison.net/2026/Sep/1/datasette-mcp/</id><summary type="html">
+    
+        &lt;p&gt;&lt;strong&gt;Release:&lt;/strong&gt; &lt;a href="https://github.com/datasette/datasette-mcp/releases/tag/0.2"&gt;datasette-mcp 0.2&lt;/a&gt;&lt;/p&gt;
+        &lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;"rows"&lt;/code&gt; from &lt;code&gt;execute_sql&lt;/code&gt; is now an array of objects. Previously it was an array of arrays. This should help weaker models avoid losing track of which positional array element maps to which column. &lt;a href="https://github.com/datasette/datasette-mcp/issues/1"&gt;#1&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Now depends on &lt;code&gt;mcp&amp;gt;=2.1.1&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This is the first non-alpha release of the plugin. I'm confident it's ready as I've been using it quite a bit myself.&lt;/p&gt;
+    
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/datasette"&gt;datasette&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/model-context-protocol"&gt;model-context-protocol&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="datasette"/><category term="model-context-protocol"/></entry><entry><title>Python 3.15.0 candidate 2 is here!</title><link href="https://simonwillison.net/2026/Sep/1/python-315-rc-2/" rel="alternate"/><published>2026-09-01T14:59:18+00:00</published><updated>2026-09-01T14:59:18+00:00</updated><id>https://simonwillison.net/2026/Sep/1/python-315-rc-2/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://discuss.python.org/t/python-3-15-0-candidate-2-is-here/108841"&gt;Python 3.15.0 candidate 2 is here!&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+Hugo van Kemenade (release manager for Python 3.14 and 3.15) announces the final release candidate for Python 3.15, scheduled for release in October:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Entering the release candidate phase, only reviewed code changes which are clear bug fixes are allowed between this release candidate and the final release. [...]&lt;/p&gt;
+&lt;p&gt;We &lt;strong&gt;strongly encourage&lt;/strong&gt; maintainers of third-party Python projects to prepare their projects for 3.15 during this phase, and publish Python 3.15 wheels on PyPI to be ready for the final release of 3.15.0, and to help other projects do their own testing. Any binary wheels built against Python 3.15.0 release candidates &lt;strong&gt;will work&lt;/strong&gt; with future versions of Python 3.15.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Back in 2021 I &lt;a href="https://simonwillison.net/2021/Oct/9/finding-and-reporting-a-bug/"&gt;found a bug in Python 3.10&lt;/a&gt; by running my test suites against it... but I hadn't done this during the RC period, so that bug had already shipped! Since then I've always paid much closer attention to these RCs.&lt;/p&gt;
+&lt;p&gt;The new RC isn't available for GitHub Actions just yet - keep an eye on &lt;a href="https://github.com/actions/python-versions/releases"&gt;actions/python-versions&lt;/a&gt; for that. For the moment though you can add this to a testing matrix:&lt;/p&gt;
+&lt;div class="highlight highlight-source-yaml"&gt;&lt;pre&gt;&lt;span class="pl-ent"&gt;strategy&lt;/span&gt;:
+  &lt;span class="pl-ent"&gt;matrix&lt;/span&gt;:
+    &lt;span class="pl-ent"&gt;python-version&lt;/span&gt;: &lt;span class="pl-s"&gt;["3.14", "3.15"]&lt;/span&gt;
+
+&lt;span class="pl-ent"&gt;steps&lt;/span&gt;:
+  - &lt;span class="pl-ent"&gt;uses&lt;/span&gt;: &lt;span class="pl-s"&gt;actions/setup-python@v7&lt;/span&gt;
+    &lt;span class="pl-ent"&gt;with&lt;/span&gt;:
+      &lt;span class="pl-ent"&gt;python-version&lt;/span&gt;: &lt;span class="pl-s"&gt;${{ matrix.python-version }}&lt;/span&gt;
+      &lt;span class="pl-ent"&gt;allow-prereleases&lt;/span&gt;: &lt;span class="pl-c1"&gt;true&lt;/span&gt;
+      &lt;span class="pl-ent"&gt;check-latest&lt;/span&gt;: &lt;span class="pl-c1"&gt;true&lt;/span&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;a href="https://github.com/actions/setup-python/blob/main/docs/advanced-usage.md#allow-pre-releases"&gt;allow-prereleases&lt;/a&gt; and &lt;a href="https://github.com/actions/setup-python/blob/main/docs/advanced-usage.md#check-latest-version"&gt;check-latest&lt;/a&gt; flags mean that today this will test against RC1, and when RC2 lands it will automatically switch to that version (and then the stable version once that comes out.)&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update&lt;/strong&gt;: &lt;a href="https://github.com/simonw/datasette/pull/2895"&gt;Datasette passes&lt;/a&gt;, &lt;a href="https://github.com/simonw/sqlite-utils/pull/852"&gt;sqlite-utils passes&lt;/a&gt;, LLM is &lt;a href="https://github.com/simonw/llm/pull/1652#issuecomment-5504533598"&gt;currently blocked&lt;/a&gt; waiting for a 3.15 wheel for &lt;a href="https://github.com/scikit-learn/scikit-learn/issues/34652"&gt;scikit-learn&lt;/a&gt;, which is optionally used in the test suite.
+
+    &lt;p&gt;&lt;small&gt;&lt;/small&gt;Via &lt;a href="https://bsky.app/profile/hugovk.dev/post/3muhjndhw322i"&gt;@hugovk.dev&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/open-source"&gt;open-source&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/python"&gt;python&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/github-actions"&gt;github-actions&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="open-source"/><category term="python"/><category term="github-actions"/></entry><entry><title>Introducing wrapture</title><link href="https://simonwillison.net/2026/Aug/31/introducing-wrapture/" rel="alternate"/><published>2026-08-31T23:59:36+00:00</published><updated>2026-08-31T23:59:36+00:00</updated><id>https://simonwillison.net/2026/Aug/31/introducing-wrapture/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://grahamdumpleton.me/posts/2026/08/introducing-wrapture/"&gt;Introducing wrapture&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+New from Graham Dumpleton (of &lt;a href="https://pypi.org/project/wrapt/"&gt;wrapt&lt;/a&gt;, mod_wsgi, and New Relic's Python agent fame), who describes Wrapture as taking the monkeypatching ideas from wrapt and extending them to apply to testing and tracing at the same time.&lt;/p&gt;
+&lt;p&gt;Wrapture (&lt;a href="https://wrapture.readthedocs.io/"&gt;full documentation here&lt;/a&gt;) makes it easy to wrap any function or method such that all access can be traced, or can be overridden to return a different value.&lt;/p&gt;
+&lt;p&gt;It acts as both an alternative to &lt;code&gt;unittest.mock&lt;/code&gt; and a way to implement tracing against an existing project:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Attaching observation to code you do not control, recording what flows through it, and doing so without disturbing the program being watched, is a problem I have never really stopped thinking about.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Wrapture includes &lt;a href="https://wrapture.readthedocs.io/en/latest/otel-export.html"&gt;OpenTelemetry support&lt;/a&gt; and even has an entirely configuration-based mechanism for adding tracing to an existing Python project, which looks like this:&lt;/p&gt;
+&lt;div class="highlight highlight-source-toml"&gt;&lt;pre&gt;&lt;span class="pl-smi"&gt;capture&lt;/span&gt; = &lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;"&lt;/span&gt;summary&lt;span class="pl-pds"&gt;"&lt;/span&gt;&lt;/span&gt;
+
+[[&lt;span class="pl-en"&gt;observe&lt;/span&gt;]]
+&lt;span class="pl-smi"&gt;target&lt;/span&gt; = &lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;"&lt;/span&gt;domain:Calculator&lt;span class="pl-pds"&gt;"&lt;/span&gt;&lt;/span&gt;
+&lt;span class="pl-smi"&gt;name&lt;/span&gt; = [&lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;"&lt;/span&gt;outer&lt;span class="pl-pds"&gt;"&lt;/span&gt;&lt;/span&gt;, &lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;"&lt;/span&gt;inner&lt;span class="pl-pds"&gt;"&lt;/span&gt;&lt;/span&gt;]
+
+[[&lt;span class="pl-en"&gt;sink&lt;/span&gt;]]
+&lt;span class="pl-smi"&gt;type&lt;/span&gt; = &lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;"&lt;/span&gt;jsonlines&lt;span class="pl-pds"&gt;"&lt;/span&gt;&lt;/span&gt;
+&lt;span class="pl-smi"&gt;path&lt;/span&gt; = &lt;span class="pl-s"&gt;&lt;span class="pl-pds"&gt;"&lt;/span&gt;trace.jsonl&lt;span class="pl-pds"&gt;"&lt;/span&gt;&lt;/span&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This is still a very young project - just a few weeks old - but it's off to a very promising start.&lt;/p&gt;
+&lt;p&gt;Interestingly, this is also Graham's first attempt at  large entirely agent-driven project:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Every line of code and documentation in wrapture was written by an AI assistant working under my direction. I want to be upfront about that, and equally upfront about what it was not. This was not vibe coding, where a one-shot prompt produces a pile of generated code and the person driving hopes for the best because they lack the knowledge to judge what came back. Vibe coding has earned its bad reputation. I engineered wrapture carefully from the start. I have spent a long time in this particular corner of Python and knew exactly what the result needed to be, and the AI was the means of producing it rather than the source of the design.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;In a follow-up post, &lt;a href="https://grahamdumpleton.me/posts/2026/09/unit-testing-with-wrapture/"&gt;Unit testing with wrapture&lt;/a&gt;, Graham shows the testing patterns supported by the new library:&lt;/p&gt;
+&lt;pre&gt;&lt;span class="pl-k"&gt;def&lt;/span&gt; &lt;span class="pl-en"&gt;test_stub_with_wrapture&lt;/span&gt;():
+    &lt;span class="pl-k"&gt;with&lt;/span&gt; &lt;span class="pl-s1"&gt;wrapture&lt;/span&gt;.&lt;span class="pl-c1"&gt;binding&lt;/span&gt;(
+        &lt;span class="pl-v"&gt;Gateway&lt;/span&gt;, &lt;span class="pl-s"&gt;"charge"&lt;/span&gt;
+    ).&lt;span class="pl-c1"&gt;on_call&lt;/span&gt;.&lt;span class="pl-c1"&gt;returns&lt;/span&gt;({
+        &lt;span class="pl-s"&gt;"id"&lt;/span&gt;: &lt;span class="pl-s"&gt;"stub"&lt;/span&gt;, &lt;span class="pl-s"&gt;"amount"&lt;/span&gt;: &lt;span class="pl-c1"&gt;0&lt;/span&gt;}
+    ):
+        &lt;span class="pl-k"&gt;assert&lt;/span&gt; &lt;span class="pl-en"&gt;OrderService&lt;/span&gt;().&lt;span class="pl-c1"&gt;place&lt;/span&gt;(
+            &lt;span class="pl-c1"&gt;500&lt;/span&gt;
+        )[&lt;span class="pl-s"&gt;"id"&lt;/span&gt;] &lt;span class="pl-c1"&gt;==&lt;/span&gt; &lt;span class="pl-s"&gt;"stub"&lt;/span&gt;&lt;/pre&gt;
+&lt;p&gt;And this neat example of a test that calls and then modifies the return value from the original method:&lt;/p&gt;
+&lt;pre&gt;&lt;span class="pl-k"&gt;def&lt;/span&gt; &lt;span class="pl-en"&gt;test_pinned_result_with_wrapture&lt;/span&gt;():
+    &lt;span class="pl-s1"&gt;charge&lt;/span&gt; &lt;span class="pl-c1"&gt;=&lt;/span&gt; &lt;span class="pl-s1"&gt;wrapture&lt;/span&gt;.&lt;span class="pl-c1"&gt;binding&lt;/span&gt;(
+        &lt;span class="pl-v"&gt;Gateway&lt;/span&gt;, &lt;span class="pl-s"&gt;"charge"&lt;/span&gt;
+    )
+    &lt;span class="pl-s1"&gt;charge&lt;/span&gt;.&lt;span class="pl-c1"&gt;on_call&lt;/span&gt;.&lt;span class="pl-c1"&gt;transforms_result&lt;/span&gt;(
+        &lt;span class="pl-k"&gt;lambda&lt;/span&gt; &lt;span class="pl-s1"&gt;r&lt;/span&gt;: {&lt;span class="pl-c1"&gt;**&lt;/span&gt;&lt;span class="pl-s1"&gt;r&lt;/span&gt;, &lt;span class="pl-s"&gt;"id"&lt;/span&gt;: &lt;span class="pl-s"&gt;"ch_TEST"&lt;/span&gt;}
+    )
+    &lt;span class="pl-k"&gt;with&lt;/span&gt; &lt;span class="pl-s1"&gt;charge&lt;/span&gt;:
+        &lt;span class="pl-k"&gt;assert&lt;/span&gt; &lt;span class="pl-en"&gt;OrderService&lt;/span&gt;().&lt;span class="pl-c1"&gt;place&lt;/span&gt;(
+           &lt;span class="pl-c1"&gt;500&lt;/span&gt;
+        ) &lt;span class="pl-c1"&gt;==&lt;/span&gt; {
+            &lt;span class="pl-s"&gt;"id"&lt;/span&gt;: &lt;span class="pl-s"&gt;"ch_TEST"&lt;/span&gt;, &lt;span class="pl-s"&gt;"amount"&lt;/span&gt;: &lt;span class="pl-c1"&gt;500&lt;/span&gt;
+        }&lt;/pre&gt;
+
+&lt;p&gt;(In both of these examples the &lt;code&gt;OrderService().place(...)&lt;/code&gt; method calls &lt;code&gt;Gateway().charge(...)&lt;/code&gt;.)
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/graham-dumpleton"&gt;graham-dumpleton&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/monkey-patching"&gt;monkey-patching&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/python"&gt;python&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/testing"&gt;testing&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/pytest"&gt;pytest&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/observability"&gt;observability&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-assisted-programming"&gt;ai-assisted-programming&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/agentic-engineering"&gt;agentic-engineering&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/opentelemetry"&gt;opentelemetry&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="graham-dumpleton"/><category term="monkey-patching"/><category term="python"/><category term="testing"/><category term="pytest"/><category term="observability"/><category term="ai-assisted-programming"/><category term="agentic-engineering"/><category term="opentelemetry"/></entry><entry><title>Quoting Andrew Digby</title><link href="https://simonwillison.net/2026/Aug/31/andrew-digby/" rel="alternate"/><published>2026-08-31T22:25:02+00:00</published><updated>2026-08-31T22:25:02+00:00</updated><id>https://simonwillison.net/2026/Aug/31/andrew-digby/</id><summary type="html">
+    &lt;blockquote cite="https://bsky.app/profile/digs.bsky.social/post/3mufrrsfhq22r"&gt;&lt;p&gt;325 #kakapo! The chicks from this year's record breeding season are now juveniles and so have been added to the population. In 1995 there were just 51 kākāpō left. Recovery of critically endangered species &lt;em&gt;is&lt;/em&gt; possible with sustained effort.&lt;/p&gt;&lt;/blockquote&gt;
+&lt;p class="cite"&gt;&amp;mdash; &lt;a href="https://bsky.app/profile/digs.bsky.social/post/3mufrrsfhq22r"&gt;Andrew Digby&lt;/a&gt;, providing the best news of the year&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/kakapo"&gt;kakapo&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="kakapo"/></entry><entry><title>Understanding ChatGPT Work</title><link href="https://simonwillison.net/2026/Aug/30/understanding-chatgpt-work/" rel="alternate"/><published>2026-08-30T23:59:47+00:00</published><updated>2026-08-30T23:59:47+00:00</updated><id>https://simonwillison.net/2026/Aug/30/understanding-chatgpt-work/</id><summary type="html">
+    &lt;p&gt;OpenAI &lt;a href="https://openai.com/index/chatgpt-for-your-most-ambitious-work/"&gt;announced ChatGPT Work&lt;/a&gt; on July 9th, and have been furiously iterating on it ever since. It is an extraordinarily confusing and very powerful product. Here's what I've figured out about it so far.&lt;/p&gt;
+&lt;h4 id="two-products"&gt;ChatGPT Work is actually two products&lt;/h4&gt;
+&lt;p&gt;The more interesting version of ChatGPT Work is the one that runs in the cloud. This can be accessed via &lt;a href="https://www.chatgpt.com/"&gt;chatgpt.com&lt;/a&gt; or through the ChatGPT mobile apps. Let's call it &lt;strong&gt;Work Cloud&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;If you install the ChatGPT desktop app - the app that used to be called Codex - you gain access to a thing called ChatGPT Work that can access files and run programs directly on your computer. Let's call that one &lt;strong&gt;Work Local&lt;/strong&gt;. This one feels more like regular Codex re-skinned to be less intimidating to non-software-developers.&lt;/p&gt;
+
+&lt;p&gt;(&lt;strong&gt;Update&lt;/strong&gt;: Work Cloud is also available from the ChatGPT desktop app, via a &lt;a href="https://bsky.app/profile/jkwim.bsky.social/post/3mueurvkss52h"&gt;Where should this chat run?&lt;/a&gt; dropdown.)&lt;/p&gt;
+
+&lt;p&gt;For the rest of this article I'm going to talk exclusively about Work Cloud.&lt;/p&gt;
+&lt;h4 id="work-is-for-paid-subscribers-only"&gt;Work is for paid subscribers only&lt;/h4&gt;
+&lt;p&gt;Right now, ChatGPT Work (in both flavors) is available only to $20/month and up subscribers. Free users and $8/month Go users do not have access.&lt;/p&gt;
+&lt;h4 id="work-has-features-that-aren-t-available-in-chat"&gt;Work has features that aren't available in Chat&lt;/h4&gt;
+&lt;p&gt;The interface for accessing Work is a tab selector, which presents it as an alternative to Chat:&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026-08-30/IMG_7741.jpeg" alt="ChatGPT app header with a Chat and a Work tab" style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;The obvious question is &lt;em&gt;when should I use Chat, and when should I use Work?&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;OpenAI's &lt;a href="https://learn.chatgpt.com/docs/get-started-with-work"&gt;official answer&lt;/a&gt; to that question is:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Use Chat when you want an answer, explanation, brainstorm, or short draft. Use ChatGPT Work when you want ChatGPT to complete a task with a clear outcome, such as a brief, deck, analysis, recurring update, workflow, or file you can review and use.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I find that almost entirely useless, because I've been using regular ChatGPT Chat for all of those task categories for years!&lt;/p&gt;
+&lt;p&gt;The better question then is &lt;em&gt;what features does Work have that are missing from Chat?&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;After extensive experimentation I think I've mostly figured that out:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="#model-selection"&gt;Options to use Luna and Terra in place of Sol&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#code-execution-with-internet-access-"&gt;A code execution environment with Internet access&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#a-full-headless-chrome-browser"&gt;A headless Chrome browser&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#a-persistent-shared-filesystem"&gt;A persistent filesystem shared between sessions&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#chatgpt-sites"&gt;The ability to publish ChatGPT Sites&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#sub-agents-with-sol-luna-and-terra"&gt;The ability to run sub-agent sessions with Sol, Luna, and Terra&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#scheduled-prompt-automations"&gt;Scheduled prompt automations&lt;/a&gt; (may be in ChatGPT Chat too)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id="model-selection"&gt;Model selection&lt;/h4&gt;
+&lt;p&gt;In Work, you get the option to pick GPT-5.6 Sol, Luna, or Terra, each with Light, Medium, High, Extra High, Max, or Ultra reasoning levels. You can also pick GPT-5.5 at Light, Medium, High, or Extra High.&lt;/p&gt;
+&lt;p&gt;These look to be the same models that are available through the OpenAI API.&lt;/p&gt;
+&lt;p&gt;Chat offers a different selection: 5.6 Instant, Medium, High, Extra High, and Pro (actually Extra High and Pro are only available for $100/month+ subscribers - $20/month subscribers cap out at High). It doesn't explain if those are Luna or Terra or Sol (I'm assuming Sol?). 5.6 Pro appears to be exclusive to Chat, with no equivalent in Work.&lt;/p&gt;
+&lt;p&gt;My current understanding from using Codex is that Ultra is a special mode that more eagerly delegates to sub-agents.&lt;/p&gt;
+&lt;p&gt;I believe ChatGPT Work sessions are billed against your Codex allowance, while ChatGPT Chat Sessions get their own, separate allowance. This may help explain the model availability differences.&lt;/p&gt;
+&lt;h4 id="code-execution-with-internet-access-"&gt;Code execution with Internet access!&lt;/h4&gt;
+&lt;p&gt;As a long-time fan of the &lt;a href="https://simonwillison.net/tags/code-interpreter/"&gt;Code Interpreter pattern&lt;/a&gt; - pioneered by OpenAI in 2023 - this is by far the most exciting feature of ChatGPT Work (Cloud) for me.&lt;/p&gt;
+&lt;p&gt;The code execution environment can now talk to the rest of the internet!&lt;/p&gt;
+&lt;p&gt;ChatGPT Chat can't do this - if you ask it to install additional software packages or interact with websites or APIs that access will be blocked by the container proxy.&lt;/p&gt;
+&lt;p&gt;(Weirdly, back in January it &lt;a href="https://simonwillison.net/2026/Jan/26/chatgpt-containers/"&gt;grew the ability to install packages&lt;/a&gt;, but that doesn't seem to work any more. I wish they had better changelogs!)&lt;/p&gt;
+&lt;p&gt;Claude's equivalent container has allowed restricted internet access since it launched &lt;a href="https://simonwillison.net/2025/Sep/9/claude-code-interpreter/"&gt;last September&lt;/a&gt;. Claude can install packages from PYPI and NPM and clone repositories from GitHub. But that is about it: the allowlist of domains is very short.&lt;/p&gt;
+&lt;p&gt;ChatGPT Work allows a whole lot more than that. It can be configured with a specific list of allowed domains, but the default appears to be open to all.&lt;/p&gt;
+&lt;p&gt;This makes Work an incredibly useful tool. You can have it clone GitHub repositories, install their dependencies, then use them to interact with the rest of the web!&lt;/p&gt;
+&lt;h4 id="a-full-headless-chrome-browser"&gt;A full, headless Chrome browser&lt;/h4&gt;
+&lt;p&gt;Another killer feature of ChatGPT Work is &lt;a href="https://learn.chatgpt.com/docs/browser?surface=web"&gt;the browser tool&lt;/a&gt;. ChatGPT Work can launch a full Chrome instance, load websites, fill out forms, and take screenshots.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/chatgpt-work-card.jpg" alt="Screenshot of a ChatGPT conversation. A user message in a black rounded bubble reads: Visit https://london-pelicans-in-her-piety.simonw.chatgpt.site/ and take a screenshot with you browser. Below it a collapsed status line reads &amp;quot;Worked for 1m 18s &amp;gt;&amp;quot;, followed by the reply &amp;quot;Here's the screenshot of the live site:&amp;quot; and an embedded screenshot of a website." style="max-width: 100%" /&gt;&lt;/p&gt;
+
+&lt;p&gt;If a site requires sign in the browser can prompt you to take over and enter both passwords and 2FA codes, without round-tripping those credentials through the model itself.&lt;/p&gt;
+
+&lt;p&gt;It can even run JavaScript against the DOM of loaded pages. I prompted:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Load simonwillison.net in your browser and extract the headings using JavaScript&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;ChatGPT Work fired up a browser instance and ran the code:&lt;/p&gt;
+&lt;div class="highlight highlight-source-js"&gt;&lt;pre&gt;&lt;span class="pl-k"&gt;await&lt;/span&gt; &lt;span class="pl-s1"&gt;tab&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-c1"&gt;playwright&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-en"&gt;evaluate&lt;/span&gt;&lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt; &lt;span class="pl-c1"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="pl-kos"&gt;{&lt;/span&gt;
+  &lt;span class="pl-k"&gt;return&lt;/span&gt; &lt;span class="pl-v"&gt;Array&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-en"&gt;from&lt;/span&gt;&lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-smi"&gt;document&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-en"&gt;querySelectorAll&lt;/span&gt;&lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-s"&gt;"h1,h2,h3,h4,h5,h6"&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt;&lt;span class="pl-kos"&gt;,&lt;/span&gt; &lt;span class="pl-s1"&gt;heading&lt;/span&gt; &lt;span class="pl-c1"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-kos"&gt;{&lt;/span&gt;
+    &lt;span class="pl-c1"&gt;level&lt;/span&gt;: &lt;span class="pl-s1"&gt;heading&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-c1"&gt;tagName&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-en"&gt;toLowerCase&lt;/span&gt;&lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt;&lt;span class="pl-kos"&gt;,&lt;/span&gt;
+    &lt;span class="pl-c1"&gt;text&lt;/span&gt;: &lt;span class="pl-s1"&gt;heading&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-c1"&gt;innerText&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-en"&gt;trim&lt;/span&gt;&lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-en"&gt;replace&lt;/span&gt;&lt;span class="pl-kos"&gt;(&lt;/span&gt;&lt;span class="pl-pds"&gt;&lt;span class="pl-c1"&gt;/&lt;/span&gt;&lt;span class="pl-cce"&gt;\s&lt;/span&gt;&lt;span class="pl-c1"&gt;+&lt;/span&gt;&lt;span class="pl-c1"&gt;/&lt;/span&gt;g&lt;/span&gt;&lt;span class="pl-kos"&gt;,&lt;/span&gt; &lt;span class="pl-s"&gt;" "&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt;&lt;span class="pl-kos"&gt;,&lt;/span&gt;
+    &lt;span class="pl-c1"&gt;id&lt;/span&gt;: &lt;span class="pl-s1"&gt;heading&lt;/span&gt;&lt;span class="pl-kos"&gt;.&lt;/span&gt;&lt;span class="pl-c1"&gt;id&lt;/span&gt; &lt;span class="pl-c1"&gt;||&lt;/span&gt; &lt;span class="pl-c1"&gt;null&lt;/span&gt;
+  &lt;span class="pl-kos"&gt;}&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt;&lt;span class="pl-kos"&gt;;&lt;/span&gt;
+&lt;span class="pl-kos"&gt;}&lt;/span&gt;&lt;span class="pl-kos"&gt;)&lt;/span&gt;&lt;span class="pl-kos"&gt;;&lt;/span&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This feels a lot like my &lt;a href="https://shot-scraper.datasette.io/en/stable/javascript.html"&gt;shot-scraper javascript&lt;/a&gt; tool, only now I can access it on my phone!&lt;/p&gt;
+&lt;h4 id="a-persistent-shared-filesystem"&gt;A persistent, shared filesystem&lt;/h4&gt;
+&lt;p&gt;ChatGPT Chat gets a fresh filesystem for each chat session. These cannot be accessed from any other session.&lt;/p&gt;
+&lt;p&gt;In ChatGPT Work each session gets its own scratch folder - named something like &lt;code&gt;/workspace/scratch/e00a0a017944&lt;/code&gt; - but each of those are persisted across sessions, so you can access files from previous chats. I have 171 folders in &lt;code&gt;/workspace/scratch&lt;/code&gt; right now!&lt;/p&gt;
+&lt;p&gt;As far as I can tell that &lt;code&gt;/workspace&lt;/code&gt; volume is mounted to all Work sessions that are currently running - file edits from one can be instantly seen by the others. They don't seem to share the same process space though, and localhost servers running in one can't be accessed from another.&lt;/p&gt;
+&lt;h4 id="chatgpt-sites"&gt;ChatGPT Sites&lt;/h4&gt;
+&lt;p&gt;ChatGPT Work has the ability to build &lt;em&gt;and deploy&lt;/em&gt; entire websites, using Cloudflare Workers. These can have HTML and JavaScript and can run server-side features too, including stateful features on top of Cloudflare D1 and R2.&lt;/p&gt;
+&lt;p&gt;Here's a simple site I built with this feature:&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://london-pelicans-in-her-piety.simonw.chatgpt.site/"&gt;london-pelicans-in-her-piety.simonw.chatgpt.site&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://static.simonwillison.net/static/2026/pelicans-in-her-piety.webp" alt="Screenshot of a website homepage on a cream background. Top navigation bar: a circular logo reading &amp;quot;P/P&amp;quot; on the left, the links &amp;quot;THE CENSUS&amp;quot;, &amp;quot;COLLECTIONS&amp;quot; and &amp;quot;METHOD&amp;quot; in the center, and &amp;quot;JSON ↓&amp;quot; on the right. The left half is a hero section with small red capitals reading &amp;quot;AN ICONOGRAPHIC CENSUS · GREATER LONDON&amp;quot; above a large serif heading &amp;quot;Pelicans in her piety&amp;quot;, with &amp;quot;piety&amp;quot; set in red italics. Below it: &amp;quot;Across London, an impossible bird bleeds for her young—in limewood, marble, mosaic, metal and glass. This is an evidence-backed census of where to find her.&amp;quot; Two buttons follow: a solid black &amp;quot;EXPLORE ALL 28&amp;quot; and an outlined &amp;quot;DOWNLOAD THE DATA&amp;quot;. The right half is a photograph of an ornate dark carved wooden reredos in a church, with gilded urns and a crest on top, Corinthian columns, a gilded pelican with outspread wings at its center above inscribed panels, an altar with a brass cross and red flowers, embroidered banners on either side, and a black-and-white checkerboard floor with red carpet. Vertical text along the photo's right edge reads &amp;quot;ST MARY ABCHURCH&amp;quot; and a caption at its bottom reads &amp;quot;Grinling Gibbons's reredos, St Mary Abchurch. Photograph: Diliff, CC BY-SA 3.0, via SPAB ↗&amp;quot;. A statistics strip along the bottom shows &amp;quot;28 FIXED SITES&amp;quot;, &amp;quot;4 COLLECTIONS&amp;quot;, &amp;quot;3 OPEN LEADS&amp;quot; and &amp;quot;2 KNOWN LOSSES&amp;quot;." style="max-width: 100%;" /&gt;&lt;/p&gt;
+&lt;p&gt;My prompt was:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Figure out all of the places in London with a pelican in her piety, then turn that into a JSON file and build a ChatGPT sites site about them&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;(A pelican in her piety is a fascinating piece of &lt;a href="https://devonchurchland.co.uk/blog/pelican-in-her-piety/#What-is-a-Pelican-In-Her-Piety"&gt;medieval Christian imagery&lt;/a&gt; - once you know about them you'll find them all over the place.)&lt;/p&gt;
+&lt;p&gt;These sites default to being private to the user that created them, but you can make them public and (on team plans) share them with other specific individuals.&lt;/p&gt;
+&lt;h4 id="sub-agents-with-sol-luna-and-terra"&gt;Sub-agents with Sol, Luna, and Terra&lt;/h4&gt;
+&lt;p&gt;There's not much to say about this one. ChatGPT Chat can't run sub-agents. ChatGPT Work can. This is very much a power-user feature: if you are running a complex project that can benefit from multiple parallel agents working together, Work can do that.&lt;/p&gt;
+&lt;h4 id="scheduled-prompt-automations"&gt;Scheduled prompt automations&lt;/h4&gt;
+&lt;p&gt;Another feature that seems to have migrated from regular ChatGPT to ChatGPT Work at some point. You can prompt ChatGPT Work like this:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;run a search to see if Waymo have announced a launch date for Half Moon Bay every day at 8am&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This will schedule a prompt to run on that frequency. These prompts can decide that nothing interesting has happened, or they can decide to notify you of some new information.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update&lt;/strong&gt;: Actually this seems to work in ChatGPT Chat as well.&lt;/p&gt;
+&lt;p&gt;It's still worth noting here though, as it can be used in conjunction with other ChatGPT Work exclusive features. You can set a scheduled task to update a ChatGPT Site on an hourly basis, for example.&lt;/p&gt;
+&lt;h4 id="is-this-safe-"&gt;Is this safe?&lt;/h4&gt;
+&lt;p&gt;An open question for me right now is how &lt;em&gt;safe&lt;/em&gt; all of this stuff is.&lt;/p&gt;
+&lt;p&gt;My &lt;a href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/"&gt;lethal trifecta model&lt;/a&gt; warns about the risks inherent in any agent system that combines access to private data with exposure to untrusted content and a way to communicate stolen information back to an attacker.&lt;/p&gt;
+&lt;p&gt;ChatGPT Work combines all three!&lt;/p&gt;
+&lt;p&gt;I'd love to hear more from OpenAI about how they protect ChatGPT Work sessions against prompt injection attacks. I expect their answer is the same &lt;a href="https://learn.chatgpt.com/docs/sandboxing/auto-review"&gt;auto-review mechanism&lt;/a&gt; as Codex.&lt;/p&gt;
+&lt;h4 id="openai-could-make-this-a-lot-less-confusing"&gt;OpenAI could make this a lot less confusing&lt;/h4&gt;
+&lt;p&gt;Figuring this all out took way more work than it should have.&lt;/p&gt;
+&lt;p&gt;I think there are two key problems here:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;OpenAI explain Work in terms of what it's for, not what it actually does&lt;/li&gt;
+&lt;li&gt;OpenAI still insist on hiding their system prompts and tools descriptions&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If the ChatGPT Work documentation included the exact system prompt and tool descriptions used by the agent I wouldn't have needed to write this post.&lt;/p&gt;
+&lt;h4 id="all-the-tools"&gt;A list of all the tools&lt;/h4&gt;
+&lt;p&gt;Shortly after publishing this article I had an idea. I started a fresh Work session and prompted:&lt;/p&gt;
+&lt;blockquote&gt;&lt;p&gt;&lt;code&gt;Build a site that lists every one of your tools - nearly grouped into categories - and for each one explain what it does. Try to exactly duplicate arguments and tool descriptions where possible. Design aesthetic should be technical docs, minimal flare&lt;/code&gt;&lt;/p&gt;&lt;/blockquote&gt;
+&lt;p&gt;&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/"&gt;Here's the site it built&lt;/a&gt;, which includes details of 223 registered tools - though 6 of those are from my own personal MCPs served via &lt;a href="https://simonwillison.net/2026/Jul/31/stateless-mcp/#datasette-mcp"&gt;datasette-mcp&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h4 id="and-a-whole-lot-of-skills"&gt;And a whole lot of Skills&lt;/h4&gt;
+&lt;p&gt;I noticed that the only browser-related tool in the list was &lt;a href="https://codex-tool-reference.simonw.chatgpt.site/#tool-web-run"&gt;web.run&lt;/a&gt;, which has methods for running searches, opening URLs, and clicking links, but didn't look like the full story in regards to headless browser automation.&lt;/p&gt;
+&lt;p&gt;This made me suspicious that something was missing, so I told the ChatGPT Work session that built that tools reference site:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Add full copies of every skill to the website (separate pages linked to from the homepage)&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;It turns out ChatGPT Work uses &lt;a href="https://codex-tool-reference.simonw.chatgpt.site/#skills"&gt;a lot of skills&lt;/a&gt; - 44 in fact!&lt;/p&gt;
+&lt;p&gt;The &lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/control-browser"&gt;control-browser skill&lt;/a&gt; explains how the browser works:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Run browser setup code through the Node REPL &lt;code&gt;js&lt;/code&gt; tool. In this environment the callable tool id typically appears as &lt;code&gt;mcp__node_repl__js&lt;/code&gt;. [...]&lt;/p&gt;
+&lt;p&gt;The ability to interact directly with the browser is exposed through the &lt;code&gt;browser-client&lt;/code&gt; runtime via the &lt;code&gt;agent.browsers.*&lt;/code&gt; API. Before trying to interact with it, you MUST emit and read the complete documentation returned by &lt;code&gt;await browser.documentation()&lt;/code&gt; in one go.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;So I told Work:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Add the full output of await browser.documentation() to the bottom of the /skills/control-browser page&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;And now you can read that &lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/control-browser#browser-documentation"&gt;on /skills/control-browser&lt;/a&gt; as well.&lt;/p&gt;
+&lt;p&gt;A few more interesting Skills:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/documents"&gt;documents&lt;/a&gt; for creating &lt;code&gt;.docx&lt;/code&gt; files&lt;/li&gt;
+&lt;li&gt;
+&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/imagegen"&gt;imagegen&lt;/a&gt; with tips on creating images with the &lt;code&gt;image_gen&lt;/code&gt; tool&lt;/li&gt;
+&lt;li&gt;
+&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/pdf"&gt;pdf&lt;/a&gt; for both reading and rendering PDFs&lt;/li&gt;
+&lt;li&gt;
+&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/spreadsheets"&gt;Spreadsheets&lt;/a&gt; for manipulating &lt;code&gt;.xlsx&lt;/code&gt;, &lt;code&gt;.xls&lt;/code&gt;, &lt;code&gt;.csv&lt;/code&gt;, &lt;code&gt;.tsv&lt;/code&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/sites-sites-building"&gt;sites:sites-building&lt;/a&gt; for creating ChatGPT Sites&lt;/li&gt;
+&lt;li&gt;
+&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/openai-docs"&gt;openai-docs&lt;/a&gt; for answering questions about itself&lt;/li&gt;
+&lt;li&gt;
+&lt;a href="https://codex-tool-reference.simonw.chatgpt.site/skills/data-analytics-build-dashboard"&gt;data-analytics:build-dashboard&lt;/a&gt; for building data dashboards&lt;/li&gt;
+&lt;/ul&gt;
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openai"&gt;openai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/chatgpt"&gt;chatgpt&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/code-interpreter"&gt;code-interpreter&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/lethal-trifecta"&gt;lethal-trifecta&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/skills"&gt;skills&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/general-agents"&gt;general-agents&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="ai"/><category term="openai"/><category term="generative-ai"/><category term="chatgpt"/><category term="llms"/><category term="code-interpreter"/><category term="lethal-trifecta"/><category term="skills"/><category term="general-agents"/></entry><entry><title>Introducing Hy4 Preview</title><link href="https://simonwillison.net/2026/Aug/29/hy4/" rel="alternate"/><published>2026-08-29T23:53:13+00:00</published><updated>2026-08-29T23:53:13+00:00</updated><id>https://simonwillison.net/2026/Aug/29/hy4/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://hy.tencent.ai/research/hy4-preview"&gt;Introducing Hy4 Preview&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+New open weight text input (no vision)  LLM from Chinese company Tencent today: 770B total parameters, 49B active parameters, 1M token context window, &lt;a href="https://huggingface.co/tencent/Hy4-preview"&gt;1.56TB on Hugging Face&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;This is a big size increase from their previous &lt;a href="https://huggingface.co/tencent/Hy3"&gt;Hy3&lt;/a&gt; in July, which was 295B, 21B active, 256,000 context, 598GB.&lt;/p&gt;
+&lt;p&gt;I recently started using model chat templates to better understand their capabilities. Here's Hy4's  &lt;a href="https://huggingface.co/tencent/Hy4-preview/blob/main/chat_template.jinja"&gt;chat_template.jinja&lt;/a&gt; on Hugging Face, which includes this section:&lt;/p&gt;
+&lt;div class="highlight highlight-text-html-django"&gt;&lt;pre&gt;&lt;span class="pl-e"&gt;{%&lt;/span&gt;- &lt;span class="pl-k"&gt;if&lt;/span&gt; &lt;span class="pl-k"&gt;not&lt;/span&gt; &lt;span class="pl-s"&gt;reasoning_effort&lt;/span&gt; &lt;span class="pl-s"&gt;is&lt;/span&gt; &lt;span class="pl-s"&gt;defined&lt;/span&gt; &lt;span class="pl-e"&gt;%}&lt;/span&gt;
+    &lt;span class="pl-e"&gt;{%&lt;/span&gt;- &lt;span class="pl-s"&gt;set&lt;/span&gt; &lt;span class="pl-s"&gt;reasoning_effort&lt;/span&gt; = &lt;span class="pl-s"&gt;'high'&lt;/span&gt; &lt;span class="pl-e"&gt;%}&lt;/span&gt;
+&lt;span class="pl-e"&gt;{%&lt;/span&gt;- &lt;span class="pl-s"&gt;elif&lt;/span&gt; &lt;span class="pl-s"&gt;reasoning_effort&lt;/span&gt; &lt;span class="pl-k"&gt;not&lt;/span&gt; &lt;span class="pl-k"&gt;in&lt;/span&gt; [&lt;span class="pl-s"&gt;'high'&lt;/span&gt;, &lt;span class="pl-s"&gt;'no_think'&lt;/span&gt;] &lt;span class="pl-e"&gt;%}&lt;/span&gt;
+    &lt;span class="pl-e"&gt;{%&lt;/span&gt;- &lt;span class="pl-k"&gt;if&lt;/span&gt; &lt;span class="pl-s"&gt;reasoning_effort&lt;/span&gt; &lt;span class="pl-s"&gt;is&lt;/span&gt; &lt;span class="pl-s"&gt;none&lt;/span&gt; &lt;span class="pl-e"&gt;%}&lt;/span&gt;
+        {{- raise_exception('reasoning_effort error : None, should be no_think/high') }}
+    &lt;span class="pl-e"&gt;{%&lt;/span&gt;- &lt;span class="pl-k"&gt;else&lt;/span&gt; &lt;span class="pl-e"&gt;%}&lt;/span&gt;
+        {{- raise_exception('reasoning_effort error : ' + reasoning_effort + ', should be no_think/high') }}
+    &lt;span class="pl-e"&gt;{%&lt;/span&gt;- &lt;span class="pl-k"&gt;endif&lt;/span&gt; &lt;span class="pl-e"&gt;%}&lt;/span&gt;
+&lt;span class="pl-e"&gt;{%&lt;/span&gt;- &lt;span class="pl-k"&gt;endif&lt;/span&gt; &lt;span class="pl-e"&gt;%}&lt;/span&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;So it looks like there are just two reasoning effort levels: "high" (the default) and "no_think" (reason by disabled).&lt;/p&gt;
+&lt;p&gt;I tried my "Generate an SVG of a pelican riding a bicycle" prompt with the default high reasoning &lt;a href="https://openrouter.ai/tencent/hy4-preview#apps"&gt;via OpenRouter&lt;/a&gt; and &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer#url=https%3A%2F%2Fgist.github.com%2Fsimonw%2Fcb69816b3fb940f2782569a82a523af1"&gt;got this&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Flat vector cartoon illustration of a white pelican with a large orange bill riding a red bicycle to the right along a grey road with a dashed white centre line, its orange webbed feet on the pedals and grey tail feathers fanned out behind, against a pale blue sky with a yellow sun, white clouds and horizontal white motion lines suggesting speed" src="https://static.simonwillison.net/static/2026-08-29/IMG_7725.jpeg" /&gt;&lt;/p&gt;
+&lt;p&gt;Quoting the reasoning trace:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;[...] Let's maybe add a helmet? It could improve riding theme, but may obscure head. Maybe a small cycling cap or helmet? The user didn't ask; can add red helmet? Might be cute. But pelican with big beak; a helmet might obscure. Better maybe no.&lt;/p&gt;
+&lt;p&gt;Maybe add sunglasses? no.&lt;/p&gt;
+&lt;p&gt;Maybe add water? no.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;It's interesting how the reasoning trace uses slightly truncated English, presumably because perfect grammar isn't useful or token efficient for hidden reasoning text.
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/pelican-riding-a-bicycle"&gt;pelican-riding-a-bicycle&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-reasoning"&gt;llm-reasoning&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-release"&gt;llm-release&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-in-china"&gt;ai-in-china&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="ai"/><category term="generative-ai"/><category term="llms"/><category term="pelican-riding-a-bicycle"/><category term="llm-reasoning"/><category term="llm-release"/><category term="ai-in-china"/></entry><entry><title>Just a rumour of a bug is enough to find a security exploit these days</title><link href="https://simonwillison.net/2026/Aug/28/just-a-rumour-of-a-bug/" rel="alternate"/><published>2026-08-28T22:12:02+00:00</published><updated>2026-08-28T22:12:02+00:00</updated><id>https://simonwillison.net/2026/Aug/28/just-a-rumour-of-a-bug/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://anil.recoil.org/notes/rumour-is-the-exploit"&gt;Just a rumour of a bug is enough to find a security exploit these days&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+Anil Madhavapeddy is a professor of computer science at Cambridge and a core maintainer of the OCaml compiler. In this somewhat alarming post he reports that security issues in OCaml projects are seeing evidence of attempted exploits within minutes of patches being shared for discussion:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;This normally takes a few days and a release within a week or two is reasonable. Within about ten minutes (!) this website was fielding probes for percent-encoded traversal sequences, indicating that automated watchers are keeping an eye on public repositories.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Modern coding agents have become so effective at finding flaws that the slightest hint at a new bug can be enough information for them to find it, something Anil has been able to demonstrate using his own agents, switching to DeepSeek V4 Pro⁠ when Claude Fable refused the task.&lt;/p&gt;
+&lt;p&gt;Anil points out that this rate of discovery appears incompatible with existing open source embargo practices for new issues. If an issue can become an exploit this fast, we need to figure out new processes for keeping our communities safe.&lt;/p&gt;
+&lt;p&gt;rclone maintainer Nick Craig-Wood &lt;a href="https://news.ycombinator.com/item?id=49480466#49480777"&gt;confirms in the Hacker News comments&lt;/a&gt; that his project is seeing this problem:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;In the first 10 years of the rclone project we received about 20 security disclosures through GitHub. We had to deal with over 40 in the last month! That has taken a huge amount of my time, even using AI tools to triage and come up with fixes for review.&lt;/p&gt;
+&lt;p&gt;The hit rate for those security disclosures is pretty good - about 75% of them have a nugget of something which needs looking at. [...]&lt;/p&gt;
+&lt;p&gt;GitHub assigns CVEs for the advisories. Before the AI apocalypse they took 2-3 days for an assignment but now it they are running at 3-4 weeks so I have to send the point releases out with CVE-PENDING in the changelog which isn't ideal.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+    &lt;p&gt;&lt;small&gt;&lt;/small&gt;Via &lt;a href="https://news.ycombinator.com/item?id=49480466"&gt;Hacker News&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/open-source"&gt;open-source&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/security"&gt;security&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/coding-agents"&gt;coding-agents&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ocaml"&gt;ocaml&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-security-research"&gt;ai-security-research&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="open-source"/><category term="security"/><category term="ai"/><category term="generative-ai"/><category term="llms"/><category term="coding-agents"/><category term="ocaml"/><category term="ai-security-research"/></entry><entry><title>Breaking Claude Code Opus 5 Auto Mode</title><link href="https://simonwillison.net/2026/Aug/27/breaking-claude-code-opus-5-auto-mode/" rel="alternate"/><published>2026-08-27T22:50:25+00:00</published><updated>2026-08-27T22:50:25+00:00</updated><id>https://simonwillison.net/2026/Aug/27/breaking-claude-code-opus-5-auto-mode/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://embracethered.com/blog/posts/2026/breaking-claude-code-opus-5-and-automode/"&gt;Breaking Claude Code Opus 5 Auto Mode&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+Anthropic are putting a great deal of faith in Claude Code's auto mode for protecting their coding agent users against prompt injection attacks. They recently &lt;a href="https://simonwillison.net/2026/Aug/8/auto-mode/"&gt;made that the default&lt;/a&gt; and have made bold claims about its effectiveness.&lt;/p&gt;
+&lt;p&gt;Johann Rehberger is one of the most credible prompt injection researchers active today. He found an attack against auto mode which he claims works 80% of the time, by tricking Claude Code into downloading and uncompressing a zip archive, then executing code that imports &lt;code&gt;base64&lt;/code&gt; without noticing that this will import and execute a local &lt;code&gt;struct.py&lt;/code&gt; file extracted from the archive.&lt;/p&gt;
+&lt;p&gt;In a few cases auto mode directly prevented the agent from preventing harmful code from continuing to execute!&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;In a few runs Claude tried to terminate the malware process once it noticed the compromise, but Auto Mode denied the cleanup command.&lt;/p&gt;
+&lt;p&gt;Claude detects the compromise, but &lt;strong&gt;Auto Mode blocks its cleanup command&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;The safety mechanism itself can become part of the failure. The classifier allowed the creation of the malware process, but then it blocked the command intended to stop it!&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I agree with Johann's conclusion here: the only safe way to run agents if there's any risk of attracting the attention of an adversarial attack is with a sandbox:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;Run unattended coding agents in a container, VM or OS sandbox.&lt;/li&gt;
+&lt;li&gt;Restrict network egress.&lt;/li&gt;
+&lt;li&gt;Monitor your agents.&lt;/li&gt;
+&lt;li&gt;Do not expose home directories, SSH keys, cloud credentials,… to the agent runtime. [...]&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Update 30th August 2026&lt;/strong&gt;: On Lobste.rs &lt;a href="https://lobste.rs/s/ktbweg/prompt_injection_claude_code_opus_5_auto#c_gi7eqj"&gt;hyperpape points out&lt;/a&gt; that this doesn't fit the bill of a classic prompt injection attack because at no point are malicious instructions from the website accidentally followed by the LLM. They're right: this is more of a confused environment attack where the nature of the environment that the agent is exposed to results in an exploit.
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/sandboxing"&gt;sandboxing&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/security"&gt;security&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/prompt-injection"&gt;prompt-injection&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/anthropic"&gt;anthropic&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude"&gt;claude&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/johann-rehberger"&gt;johann-rehberger&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude-code"&gt;claude-code&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="sandboxing"/><category term="security"/><category term="ai"/><category term="prompt-injection"/><category term="generative-ai"/><category term="llms"/><category term="anthropic"/><category term="claude"/><category term="johann-rehberger"/><category term="claude-code"/></entry><entry><title>Qwen3.8-Flash-Next</title><link href="https://simonwillison.net/2026/Aug/26/qwen38-flash-next/" rel="alternate"/><published>2026-08-26T23:52:58+00:00</published><updated>2026-08-26T23:52:58+00:00</updated><id>https://simonwillison.net/2026/Aug/26/qwen38-flash-next/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://qwen.ai/blog?id=qwen3.8-flash-next"&gt;Qwen3.8-Flash-Next&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+Another open weights model from Qwen. This one is "a multimodal MoE model that also serves as an early preview of the architecture used in Qwen4".&lt;/p&gt;
+&lt;p&gt;It's pretty big: 125B parameters but only 6B active which means it gets a significant performance boost.&lt;/p&gt;
+&lt;p&gt;I've been trying it out on a DGX Spark using &lt;a href="https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF"&gt;these Unsloth quantized models&lt;/a&gt;. I'm still exploring the model - so far I've tried the 72.5GB UD-IQ1_S one (producing &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer#url=https%3A%2F%2Fgist.github.com%2Fsimonw%2Ff9c69ebdab90d8a45b8de4742cc7b840"&gt;these pelicans&lt;/a&gt;) and the 78.9GB UD-Q2_K_XL (producing &lt;a href="https://tools.simonwillison.net/markdown-svg-renderer#url=https%3A%2F%2Fgist.github.com%2Fsimonw%2F6ba7cbfc1a9336986703b41f7fccd73a"&gt;these&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;My favorite so far was this xhigh reasoning effort one from UD-Q2_K_XL:&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Flat vector illustration: a white pelican with an orange beak and orange legs rides a red bicycle along a sandy path, a wicker basket on the handlebars holding a blue fish, with green rolling hills, a small tree and bushes, white clouds and a bright yellow sun in a blue sky behind it" src="https://static.simonwillison.net/static/2026-08-27/IMG_7667.png" /&gt;
+
+    &lt;p&gt;&lt;small&gt;&lt;/small&gt;Via &lt;a href="https://news.ycombinator.com/item?id=49448210"&gt;Hacker News&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/qwen"&gt;qwen&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/pelican-riding-a-bicycle"&gt;pelican-riding-a-bicycle&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-release"&gt;llm-release&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-in-china"&gt;ai-in-china&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/nvidia-spark"&gt;nvidia-spark&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="ai"/><category term="generative-ai"/><category term="llms"/><category term="qwen"/><category term="pelican-riding-a-bicycle"/><category term="llm-release"/><category term="ai-in-china"/><category term="nvidia-spark"/></entry><entry><title>Quoting Paul Dix</title><link href="https://simonwillison.net/2026/Aug/26/paul-dix/" rel="alternate"/><published>2026-08-26T08:07:55+00:00</published><updated>2026-08-26T08:07:55+00:00</updated><id>https://simonwillison.net/2026/Aug/26/paul-dix/</id><summary type="html">
+    &lt;blockquote cite="https://pauldix.com/the-end-of-programming"&gt;&lt;p&gt;The fact that AI wrote 1M LOC and then refined it over the course of the next couple of months to produce a reliable piece of software that is currently running on millions of developer machines is absolutely mind blowing. And you can say, “well it’s not that impressive because they had an oracle to compare against, so it was simple to go from one language to another”, but I think that’s selling this entire thing short. If you can build a verification system and give proper direction, AI can produce a highly complex, highly sophisticated piece of software and it can continue to refine it until it just works.&lt;/p&gt;&lt;/blockquote&gt;
+&lt;p class="cite"&gt;&amp;mdash; &lt;a href="https://pauldix.com/the-end-of-programming"&gt;Paul Dix&lt;/a&gt;, The end of programming&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/coding-agents"&gt;coding-agents&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-assisted-programming"&gt;ai-assisted-programming&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/bun"&gt;bun&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="coding-agents"/><category term="ai-assisted-programming"/><category term="generative-ai"/><category term="bun"/><category term="ai"/><category term="llms"/></entry><entry><title>EVE Online: The Move to Python 3 Begins!</title><link href="https://simonwillison.net/2026/Aug/25/eve-online-move-to-python-3/" rel="alternate"/><published>2026-08-25T22:59:30+00:00</published><updated>2026-08-25T22:59:30+00:00</updated><id>https://simonwillison.net/2026/Aug/25/eve-online-move-to-python-3/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://www.eveonline.com/news/view/the-move-to-python-3-begins"&gt;EVE Online: The Move to Python 3 Begins!&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+EVE Online has been one of the most interesting case studies in Python at scale for over twenty years now.&lt;/p&gt;
+&lt;p&gt;They've been running on &lt;a href="https://github.com/stackless-dev/stackless/wiki/"&gt;Stackless Python&lt;/a&gt; since their launch in 2003, and their last major upgrade was 16 years ago, to Stackless Python 2.7 &lt;a href="https://www.eveonline.com/news/view/stackless-python-2.7"&gt;in 2010&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Their upgrade to Python 3 will start using the &lt;a href="https://python-future.org/futurize.html"&gt;futurize&lt;/a&gt; script against 2.4 million lines of code, followed by careful manual review of the ~20,000 places where Python 2 and 3 behavior differ - for example &lt;code&gt;1 / 2&lt;/code&gt; is &lt;code&gt;0&lt;/code&gt; in Python 2 but is &lt;code&gt;0.5&lt;/code&gt; in Python 3.&lt;/p&gt;
+&lt;p&gt;There's nothing in this announcement about how they plan to replace Stackless, but at their conference last year they presented &lt;a href="https://youtu.be/-x299qHLQs0"&gt;Scheduling in Carbon: Leaving Stackless Python Behind&lt;/a&gt; describing how they replaced Stackless in the Carbon engine for their more recent game EVE Frontier, using their (now open source) &lt;a href="https://github.com/carbonengine/scheduler"&gt;carbonengine/scheduler&lt;/a&gt; library.
+
+    &lt;p&gt;&lt;small&gt;&lt;/small&gt;Via &lt;a href="https://lobste.rs/s/e1oalq/move_python_3_begins"&gt;Lobster.rs&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/eve-online"&gt;eve-online&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/migrations"&gt;migrations&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/python"&gt;python&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/python3"&gt;python3&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/stackless"&gt;stackless&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="eve-online"/><category term="migrations"/><category term="python"/><category term="python3"/><category term="stackless"/></entry><entry><title>llm-anthropic 0.27</title><link href="https://simonwillison.net/2026/Aug/24/llm-anthropic/" rel="alternate"/><published>2026-08-24T16:27:04+00:00</published><updated>2026-08-24T16:27:04+00:00</updated><id>https://simonwillison.net/2026/Aug/24/llm-anthropic/</id><summary type="html">
+    
+        &lt;p&gt;&lt;strong&gt;Release:&lt;/strong&gt; &lt;a href="https://github.com/simonw/llm-anthropic/releases/tag/0.27"&gt;llm-anthropic 0.27&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;This release of the Anthropic plugin for &lt;a href="https://llm.datasette.io/"&gt;LLM&lt;/a&gt; mainly provides compatibility with the recently released &lt;a href="https://github.com/anthropics/anthropic-sdk-python/releases/tag/v1.0.0"&gt;anthropic v1.0.0&lt;/a&gt; Python library, which switches from &lt;code&gt;httpx&lt;/code&gt; to &lt;a href="https://github.com/pydantic/httpx2"&gt;httpx2&lt;/a&gt;. OpenAI made the same change in their &lt;a href="https://github.com/openai/openai-python/releases/tag/v3.0.0"&gt;v3.0.0 release&lt;/a&gt; two weeks ago.&lt;/p&gt;
+&lt;p&gt;Anthropic provide this &lt;a href="https://github.com/anthropics/anthropic-sdk-python/blob/v1.0.0/MIGRATION.md"&gt;migration guide&lt;/a&gt; for upgrading to 1.0, so I prompted Fable 5 in Claude Code with:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;Upgrade to anthropic&amp;gt;=1 - read https://raw.githubusercontent.com/anthropics/anthropic-sdk-python/refs/heads/main/MIGRATION.md and get the tests passing&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Here's &lt;a href="https://github.com/simonw/llm-anthropic/pull/84"&gt;the resulting PR&lt;/a&gt;.&lt;/p&gt;
+    
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/python"&gt;python&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/httpx"&gt;httpx&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm"&gt;llm&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/anthropic"&gt;anthropic&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude"&gt;claude&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="python"/><category term="httpx"/><category term="llm"/><category term="anthropic"/><category term="claude"/></entry><entry><title>Your executable is a SQLite database</title><link href="https://simonwillison.net/2026/Aug/24/your-executable-is-a-sqlite-database/" rel="alternate"/><published>2026-08-24T11:38:15+00:00</published><updated>2026-08-24T11:38:15+00:00</updated><id>https://simonwillison.net/2026/Aug/24/your-executable-is-a-sqlite-database/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://fzakaria.com/2026/08/23/your-executable-is-a-sqlite-database"&gt;Your executable is a SQLite database&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+Farid Zakaria describes a neat Linux pattern for creating a SQLite database file that can be directly used as an executable binary.&lt;/p&gt;
+&lt;p&gt;The trick sets the SQLite file format's 4-byte application ID (68 bytes into the file) to SELF, standing for Structured Executable &amp;amp; Linkable Format.  The various components of the ELF executable format are then arranged into a number of different SQLite tables, using &lt;a href="https://github.com/fzakaria/selfdb/blob/main/schema/self.sql"&gt;this schema&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Their &lt;code&gt;self-exec&lt;/code&gt; interpreter (&lt;a href="https://github.com/fzakaria/selfdb/blob/main/loader/self-exec.c"&gt;C code here&lt;/a&gt;) can then extract and execute the necessary pieces.&lt;/p&gt;
+&lt;p&gt;You can additionally use a Linux mechanism called &lt;a href="https://docs.kernel.org/admin-guide/binfmt-misc.html"&gt;binfmt_misc&lt;/a&gt; to teach the kernel to execute that any time it encounters an executable matching that binary pattern. Farid uses NixOS here, but without NixOS I think registration looks something like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;printf '%s\n' ':self:M:68:SELF::/usr/local/bin/self-exec:' \
+  &amp;gt; /proc/sys/fs/binfmt_misc/register
+&lt;/code&gt;&lt;/pre&gt;
+
+    &lt;p&gt;&lt;small&gt;&lt;/small&gt;Via &lt;a href="https://news.ycombinator.com/item?id=49415271"&gt;Hacker News&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/c"&gt;c&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/linux"&gt;linux&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/sqlite"&gt;sqlite&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="c"/><category term="linux"/><category term="sqlite"/></entry><entry><title>Anthropic’s best AI model struggles to attract users as cheaper tools thrive</title><link href="https://simonwillison.net/2026/Aug/23/anthropics-best-ai-model-struggles-to-attract-users-as-cheaper-t/" rel="alternate"/><published>2026-08-23T20:24:52+00:00</published><updated>2026-08-23T20:24:52+00:00</updated><id>https://simonwillison.net/2026/Aug/23/anthropics-best-ai-model-struggles-to-attract-users-as-cheaper-t/</id><summary type="html">
+    
+&lt;p&gt;&lt;strong&gt;&lt;a href="https://www.ft.com/content/5ee49718-c258-4f01-aa32-7e5b76ae5245"&gt;Anthropic’s best AI model struggles to attract users as cheaper tools thrive&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+A few interesting numbers in this FT story gathered from "people with knowledge of the matter":&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Anthropic's "annualized revenue" for July is up to $65bn - it was $47bn in May, and I collected &lt;a href="https://simonwillison.net/2026/May/29/anthropic/"&gt;more historic numbers here&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Anthropic expect Q3 to be profitable according to the same model they used to declare Q2 profitable. "It also told investors that it had 6,000 customers that spend $100,000 annually or more."&lt;/li&gt;
+&lt;li&gt;As for OpenAI, "annualised revenue has jumped 35 per cent in the quarter to date and is now over $40bn, with the launch of GPT 5.6 in July jolting the company’s performance after a sluggish start to the year".&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This article also introduced me to the &lt;a href="https://ramp.com/data/ai-index"&gt;Ramp AI index&lt;/a&gt;, which uses billing data from 70,000 Ramp credit card using companies to estimate model adoption.&lt;/p&gt;
+&lt;p&gt;Here's Ramp's breakdown of Anthropic model spend for July 2026, which looks reasonable given that Opus 5 was only released on July 24th, and supports the idea that Fable's cost has made it a less popular model:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Opus 4.8: 28.0%&lt;/li&gt;
+&lt;li&gt;Sonnet 4.6: 8.3%&lt;/li&gt;
+&lt;li&gt;Fable 5: 8.0%&lt;/li&gt;
+&lt;li&gt;Opus 4.6: 6.9%&lt;/li&gt;
+&lt;li&gt;Sonnet 5: 3.6%&lt;/li&gt;
+&lt;li&gt;Opus 5: 3.5%&lt;/li&gt;
+&lt;li&gt;Opus 4.7: 1.7%&lt;/li&gt;
+&lt;li&gt;Sonnet 4.5: 1.3%&lt;/li&gt;
+&lt;li&gt;Haiku 4.5: 1.0%&lt;/li&gt;
+&lt;li&gt;Opus 4.5: 0.7%&lt;/li&gt;
+&lt;/ol&gt;
+
+    &lt;p&gt;&lt;small&gt;&lt;/small&gt;Via &lt;a href="https://news.ycombinator.com/item?id=49411102"&gt;Hacker News&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openai"&gt;openai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/anthropic"&gt;anthropic&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude"&gt;claude&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude-mythos-fable"&gt;claude-mythos-fable&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="ai"/><category term="openai"/><category term="generative-ai"/><category term="llms"/><category term="anthropic"/><category term="claude"/><category term="claude-mythos-fable"/></entry><entry><title>Quoting Drew Breunig</title><link href="https://simonwillison.net/2026/Aug/23/drew-breunig/" rel="alternate"/><published>2026-08-23T19:55:30+00:00</published><updated>2026-08-23T19:55:30+00:00</updated><id>https://simonwillison.net/2026/Aug/23/drew-breunig/</id><summary type="html">
+    &lt;blockquote cite="https://www.dbreunig.com/2026/08/23/fable-the-end-of-moore-s-law.html"&gt;&lt;p&gt;Prior to Fable, it felt silly to waste &lt;em&gt;too&lt;/em&gt; much time improving your coding harness or context strategies. A new model would arrive at the same price (or cheaper!) and paper over most of your problems.&lt;/p&gt;
+&lt;p&gt;But then Fable landed. It was (and still is!) &lt;em&gt;incredible&lt;/em&gt;. But the cost was so high and Opus was &lt;em&gt;good enough&lt;/em&gt; (as was 5.6, K3, and even GLM) for &lt;em&gt;most&lt;/em&gt; of the code we needed.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;So we started to think about what work went where.&lt;/em&gt;&lt;/p&gt;&lt;/blockquote&gt;
+&lt;p class="cite"&gt;&amp;mdash; &lt;a href="https://www.dbreunig.com/2026/08/23/fable-the-end-of-moore-s-law.html"&gt;Drew Breunig&lt;/a&gt;, Fable &amp;amp; The End of the Free Lunch&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/drew-breunig"&gt;drew-breunig&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/anthropic"&gt;anthropic&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude"&gt;claude&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm-pricing"&gt;llm-pricing&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/claude-mythos-fable"&gt;claude-mythos-fable&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="drew-breunig"/><category term="anthropic"/><category term="claude"/><category term="llm-pricing"/><category term="ai"/><category term="llms"/><category term="generative-ai"/><category term="claude-mythos-fable"/></entry><entry><title>Quoting Linus Torvalds</title><link href="https://simonwillison.net/2026/Aug/22/linus-torvalds/" rel="alternate"/><published>2026-08-22T21:04:26+00:00</published><updated>2026-08-22T21:04:26+00:00</updated><id>https://simonwillison.net/2026/Aug/22/linus-torvalds/</id><summary type="html">
+    &lt;blockquote cite="https://github.com/torvalds/linux/commit/818bebeb63dd6bf5f4e07e145f6cdbace520a34c"&gt;&lt;p&gt;And this was a debug session from hell, enormously helped by an AI doing much of the grunt-work.&lt;/p&gt;
+&lt;p&gt;I'd like to call it my tireless helper, but the AI several times stated flat out that this was impossible and unsolvable and that we should just write a report about it.&lt;/p&gt;
+&lt;p&gt;I suspect those things have been trained by people who may not be quite as stubborn as I am.&lt;/p&gt;
+&lt;p&gt;But while the AI was ready to give up several times, it did keep adding debug code and analyzing it faithfully when I pushed. So credit where credit is due and I let the AI write the commit message above.&lt;/p&gt;&lt;/blockquote&gt;
+&lt;p class="cite"&gt;&amp;mdash; &lt;a href="https://github.com/torvalds/linux/commit/818bebeb63dd6bf5f4e07e145f6cdbace520a34c"&gt;Linus Torvalds&lt;/a&gt;, drm/xe: Don't hand out the flat CCS storage as usable VRAM&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/linus-torvalds"&gt;linus-torvalds&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/linux"&gt;linux&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai-assisted-programming"&gt;ai-assisted-programming&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="linus-torvalds"/><category term="linux"/><category term="generative-ai"/><category term="ai-assisted-programming"/><category term="ai"/><category term="llms"/></entry><entry><title>llm 0.33</title><link href="https://simonwillison.net/2026/Aug/22/llm/" rel="alternate"/><published>2026-08-22T17:01:16+00:00</published><updated>2026-08-22T17:01:16+00:00</updated><id>https://simonwillison.net/2026/Aug/22/llm/</id><summary type="html">
+    
+        &lt;p&gt;&lt;strong&gt;Release:&lt;/strong&gt; &lt;a href="https://github.com/simonw/llm/releases/tag/0.33"&gt;llm 0.33&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;My highlights from this release:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;Upgraded to the OpenAI Python library 3.x and switched the HTTP client dependency from &lt;code&gt;httpx&lt;/code&gt; to &lt;code&gt;httpx2&lt;/code&gt;. &lt;a href="https://github.com/simonw/llm/issues/1608"&gt;#1608&lt;/a&gt;, &lt;a href="https://github.com/simonw/llm/pull/1631"&gt;#1631&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I shipped a quick &lt;a href="https://simonwillison.net/2026/Aug/21/llm/"&gt;0.32.1 fix&lt;/a&gt; for this yesterday, but this is the more comprehensive fix.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;llm embed&lt;/code&gt; and &lt;code&gt;llm embed-multi&lt;/code&gt; now accept &lt;code&gt;--key&lt;/code&gt;. The Python &lt;code&gt;EmbeddingModel.embed()&lt;/code&gt;, &lt;code&gt;EmbeddingModel.embed_multi()&lt;/code&gt;, &lt;code&gt;Collection.embed()&lt;/code&gt; and &lt;code&gt;Collection.embed_multi()&lt;/code&gt; methods accept &lt;code&gt;key=&lt;/code&gt; too, passing the resolved per-call key to embedding plugins without changing shared model state. Existing plugins that read &lt;code&gt;self.key&lt;/code&gt; continue to work through a compatibility fallback. Thanks, &lt;a href="https://github.com/ChrisJr404"&gt;ChrisJr404&lt;/a&gt;. &lt;a href="https://github.com/simonw/llm/issues/757"&gt;#757&lt;/a&gt;, &lt;a href="https://github.com/simonw/llm/pull/1620"&gt;#1620&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The embedding models now use the same pattern for keys that regular LLM models do.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;llm prompt -t/--template&lt;/code&gt; can now be repeated to combine templates in order. This allows model configuration and options from one template to be used with a prompt from another.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This unlocks a neat pattern where you can create templates that package a model with a set of default options:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;llm -m gpt-5.6-luna -o reasoning_effort high --save lhigh
+llm "Generate an SVG of a pelican riding a bicycle" --save pelican
+# Combine and run the templates
+llm -t lhigh -t pelican
+&lt;/code&gt;&lt;/pre&gt;
+&lt;blockquote&gt;
+&lt;ul&gt;
+&lt;li&gt;Reasoning-capable Responses API models now support a &lt;code&gt;reasoning_summary&lt;/code&gt; option with &lt;code&gt;auto&lt;/code&gt;, &lt;code&gt;concise&lt;/code&gt;, and &lt;code&gt;detailed&lt;/code&gt; values. This can be used with &lt;a href="https://llm.datasette.io/en/stable/other-models.html#openai-endpoint"&gt;llm openai endpoint --responses&lt;/a&gt;. &lt;a href="https://github.com/simonw/llm/issues/1600"&gt;#1600&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This is particularly useful for exercising different models that provide their own imitation of the OpenAI Responses API.&lt;/p&gt;
+    
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/annotated-release-notes"&gt;annotated-release-notes&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm"&gt;llm&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="annotated-release-notes"/><category term="llm"/></entry><entry><title>More than just code review</title><link href="https://simonwillison.net/2026/Aug/22/more-than-just-code-review/" rel="alternate"/><published>2026-08-22T15:56:54+00:00</published><updated>2026-08-22T15:56:54+00:00</updated><id>https://simonwillison.net/2026/Aug/22/more-than-just-code-review/</id><summary type="html">
+    &lt;p&gt;The key skill required to make productive use of coding agents is being able to confidently instruct them on how to make changes and then confidently verify that those changes have been applied in the correct way.&lt;/p&gt;
+&lt;p&gt;Sometimes this involves reviewing every line of code they have written, but there are other ways to achieve that goal. Eyeballing every line of code has never been the most effective way to validate a change to a piece of software.&lt;/p&gt;
+
+    &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/code-review"&gt;code-review&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/coding-agents"&gt;coding-agents&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/generative-ai"&gt;generative-ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/agentic-engineering"&gt;agentic-engineering&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/ai"&gt;ai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llms"&gt;llms&lt;/a&gt;&lt;/p&gt;
+
+
+
+</summary><category term="code-review"/><category term="coding-agents"/><category term="generative-ai"/><category term="agentic-engineering"/><category term="ai"/><category term="llms"/></entry><entry><title>llm 0.32.1</title><link href="https://simonwillison.net/2026/Aug/21/llm/" rel="alternate"/><published>2026-08-21T17:16:13+00:00</published><updated>2026-08-21T17:16:13+00:00</updated><id>https://simonwillison.net/2026/Aug/21/llm/</id><summary type="html">
+    
+        &lt;p&gt;&lt;strong&gt;Release:&lt;/strong&gt; &lt;a href="https://github.com/simonw/llm/releases/tag/0.32.1"&gt;llm 0.32.1&lt;/a&gt;&lt;/p&gt;
+        &lt;p&gt;Fresh installs of LLM stopped working the other day because the OpenAI Python library dropped its usage of &lt;code&gt;httpx&lt;/code&gt;, and it turned out LLM depended on that library but only installed it via a transitive &lt;code&gt;openai&lt;/code&gt; dependency.&lt;/p&gt;
+&lt;p&gt;This dot-release fixes that for the moment by pinning to &lt;code&gt;openai&amp;lt;3&lt;/code&gt;, and a soon-to-drop 0.33 release will switch from &lt;code&gt;httpx&lt;/code&gt; to &lt;a href="https://github.com/pydantic/httpx2"&gt;httpx2&lt;/a&gt;.&lt;/p&gt;
+    
+    
+        &lt;p&gt;Tags: &lt;a href="https://simonwillison.net/tags/httpx"&gt;httpx&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/openai"&gt;openai&lt;/a&gt;, &lt;a href="https://simonwillison.net/tags/llm"&gt;llm&lt;/a&gt;&lt;/p&gt;
+    
+
+</summary><category term="httpx"/><category term="openai"/><category term="llm"/></entry></feed>
