@@ -5,6 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 
 from app.api.v1 import crawls, documents, domains, health, intelligence, preflight, search, sources
 from app.core.config import get_settings
@@ -36,6 +37,11 @@ app = FastAPI(
     description="Pre-flight assessment, instant crawl, and continuous monitoring for public web sources.",
     lifespan=lifespan,
 )
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
 
 
 @app.middleware("http")
