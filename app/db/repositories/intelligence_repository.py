@@ -27,7 +27,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,7 +59,10 @@ class IntelligenceRepository:
             normalized_name=normalized_name, entity_language=language, entity_confidence=confidence,
             first_seen_at=now, last_seen_at=now,
         ).on_conflict_do_nothing(
-            index_elements=["entity_type", "normalized_name"], index_where=(WebIntelUnified.record_kind == "entity")
+            index_elements=["entity_type", "normalized_name"],
+            index_where=text(
+                "record_kind = 'entity' AND entity_type IS NOT NULL AND normalized_name IS NOT NULL"
+            ),
         )
         result = await self._session.execute(insert_stmt.returning(Entity.id))
         created_id = result.scalar_one_or_none()

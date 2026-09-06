@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -234,8 +234,12 @@ class CrawlRepository:
             recommended_concurrency=5,
             circuit_state="healthy",
             domain_learning=dict(_DOMAIN_PROFILE_DEFAULTS),
+        # Use a literal WHERE string matching uq_webintel_domain_profile
+        # exactly. A bound `record_kind = $N` predicate does not infer that
+        # partial unique index on Postgres (InvalidColumnReferenceError).
         ).on_conflict_do_nothing(
-            index_elements=["domain"], index_where=(WebIntelUnified.record_kind == "domain_profile")
+            index_elements=["domain"],
+            index_where=text("record_kind = 'domain_profile' AND domain IS NOT NULL"),
         )
         await self._session.execute(insert_stmt)
 
@@ -425,7 +429,10 @@ class CrawlRepository:
             page_type=effective_page_type,
             domain_learning={**_URL_PATTERN_DEFAULTS, "pattern": pattern, "by_page_type": {}},
         ).on_conflict_do_nothing(
-            index_elements=["domain", "url"], index_where=(WebIntelUnified.record_kind == "url_pattern")
+            index_elements=["domain", "url"],
+            index_where=text(
+                "record_kind = 'url_pattern' AND domain IS NOT NULL AND url IS NOT NULL"
+            ),
         )
         await self._session.execute(insert_stmt)
 
