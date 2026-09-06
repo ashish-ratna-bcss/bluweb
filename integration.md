@@ -12,17 +12,33 @@ Live contract drift check: open **`GET /docs`** or **`GET /openapi.json`** on a 
 
 | Item | Value |
 |---|---|
-| Base URL (local) | `http://127.0.0.1:8000` |
-| Base URL (deployed on server `1930`) | On-host `http://127.0.0.1:8000`; from a laptop use `ssh -L 8000:127.0.0.1:8000 1930` then the local URL (TCP 8000 is typically not public) |
+| Base URL (**deployed / public**) | `http://100.49.109.96:8000` |
+| Server | AWS host `1930` (`ip-172-31-81-195`), public IPv4 **`100.49.109.96`**, service port **`8000`** |
+| Base URL (on the server itself) | `http://127.0.0.1:8000` |
+| Base URL (local dev) | `http://127.0.0.1:8000` when running uvicorn locally |
+| Interactive docs | `http://100.49.109.96:8000/docs` (also `/openapi.json`) |
 | Content type | `application/json` on POST/PATCH bodies |
-| Auth | **None** — treat as trusted-network only |
-| Interactive docs | `GET /` → redirects to `/docs` |
+| Auth | **None** — anyone who can reach `:8000` can call every endpoint |
 | Request tracing | Every response has `X-Request-ID`; API errors also put it under `error.request_id` |
+| Firewall | App already listens on `0.0.0.0:8000`. Open **TCP 8000** inbound on AWS security group **`launch-wizard-53`** (see below) |
+
+**AWS security group (you manage this):** In EC2 → Security Groups → **`launch-wizard-53`** → Inbound rules → **Add rule**:
+
+| Type | Protocol | Port | Source | Description |
+|---|---|---|---|---|
+| Custom TCP | TCP | **8000** | `0.0.0.0/0` (and `::/0` if you use IPv6) | Bluweb public API |
+
+Leave existing SSH (22) / HTTP (80) rules as they are. No app config change is required after the SG rule is saved — test with:
+
+```bash
+curl -s http://100.49.109.96:8000/health
+curl -s http://100.49.109.96:8000/health/ready
+```
 
 **Minimal happy path (instant crawl → read page body):**
 
 ```bash
-BASE=http://127.0.0.1:8000
+BASE=http://100.49.109.96:8000
 
 # 1) Start crawl (async)
 curl -s -X POST "$BASE/api/v1/crawls" \
@@ -46,6 +62,8 @@ curl -s "$BASE/api/v1/documents/<document_id>/versions/<current_version>"
 **Minimal monitoring path:**
 
 ```bash
+BASE=http://100.49.109.96:8000
+
 # Preflight (synchronous, can take tens of seconds)
 curl -s -X POST "$BASE/api/v1/preflight" \
   -H 'Content-Type: application/json' \
@@ -156,7 +174,7 @@ Unless noted, paths below are absolute from the base URL.
 | GET | `/metrics` | 200 | Prometheus text |
 
 ```bash
-curl -s http://127.0.0.1:8000/health/ready
+curl -s http://100.49.109.96:8000/health/ready
 ```
 
 ---
@@ -195,7 +213,7 @@ Synchronous capability assessment (DNS, HTTP, robots, sitemap, feeds, sample ext
 **Blocked / bad URLs:** scheme/SSRF failures do **not** return HTTP 400. The handler still returns **201** with a **failed** report (`status`/`error` populated). Compare with crawls/sources, which raise `400 URL_BLOCKED`.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/api/v1/preflight \
+curl -s -X POST http://100.49.109.96:8000/api/v1/preflight \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://bluecloudsoftech.com/"}'
 ```
@@ -254,8 +272,9 @@ Creates a job and returns immediately; discovery + crawl run in a background asy
 **Poll pattern (required — no push):**
 
 ```bash
+BASE=http://100.49.109.96:8000
 CRAWL_ID=…
-curl -s http://127.0.0.1:8000/api/v1/crawls/$CRAWL_ID
+curl -s "$BASE/api/v1/crawls/$CRAWL_ID"
 # repeat until status is completed|cancelled|failed
 # recommended: 1–2s while queued/running, then backoff
 ```
@@ -287,7 +306,7 @@ curl -s http://127.0.0.1:8000/api/v1/crawls/$CRAWL_ID
 **Body text is never on list/detail.** Use:
 
 ```bash
-curl -s "http://127.0.0.1:8000/api/v1/documents/$DOC_ID/versions/$CURRENT_VERSION"
+curl -s "http://100.49.109.96:8000/api/v1/documents/$DOC_ID/versions/$CURRENT_VERSION"
 # → DocumentVersionResponse: version_number, change_type, title, content, content_hash, created_at
 ```
 
@@ -401,7 +420,7 @@ Starts a crawl, waits up to `wait_seconds`, returns whatever is indexed so far p
 **Response (`InstantSearchResponse`):** `crawl_id` (string), `crawl_status`, `total`, `results`, `note` (tells you if crawl still running).
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/api/v1/search/instant \
+curl -s -X POST http://100.49.109.96:8000/api/v1/search/instant \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com/","query":"example","max_pages":5,"wait_seconds":8}'
 ```
@@ -514,9 +533,10 @@ After a NEW/UPDATED crawl finishes: `GET /api/v1/entities`, `GET /api/v1/stories
 
 > API authn/authz is **not implemented**.
 
-- Keep the API on localhost / private VPC / gateway with **your** auth + TLS + rate limits.  
+- Deployed base URL for integrators: **`http://100.49.109.96:8000`** (after SG TCP **8000** is open).  
+- Anyone on the internet who can reach that port can call every endpoint — put auth/TLS/rate limits in front if that is not acceptable.  
 - Server-side SSRF checks emit `URL_BLOCKED` on crawl/source (and fail preflight reports); still validate URLs in the UI.  
-- No CORS middleware — plan a reverse proxy or add CORS before a browser SPA on another origin talks to `:8000`.  
+- No CORS middleware in the app today — a browser SPA on another origin may need a reverse proxy or CORS middleware. Server-to-server calls are fine without CORS.  
 - Secrets (`DATABASE_URL`, MinIO, `HF_TOKEN`) stay in server `.env` only.
 
 ---
@@ -582,7 +602,8 @@ Always surface `error.request_id` / `X-Request-ID` in support UI.
 - [ ] `GET /health` and `GET /health/ready` OK  
 - [ ] MinIO reachable; API can create bucket  
 - [ ] Do **not** run Alembic against this DB  
-- [ ] Network: not public without your auth layer; CORS/proxy if browser SPA  
+- [ ] Public base `http://100.49.109.96:8000` reachable (`/health`, `/health/ready`); SG TCP 8000 open  
+- [ ] CORS/proxy if a browser SPA on another origin will call the API (server-to-server needs neither)  
 - [ ] Instant crawl UI: create → poll → pages → documents → **version body**  
 - [ ] Monitoring UI: preflight → source → start/pause → events  
 - [ ] Document changes: `/changes` + `/diff`  
