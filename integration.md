@@ -1,59 +1,123 @@
 # Web Application Integration Guide
 
-Integration guide for connecting a frontend / web application to the **Bluweb (Web Intelligence Collection Backend)** service.
+Integration guide for connecting a frontend / another backend to the **Bluweb (Web Intelligence Collection Backend)** service.
 
-This document is based on the **actual implemented APIs and models** in this repository (`app/api/v1/*`, `app/schemas/*`, `app/db/models/*`). Invented endpoints, auth schemes, WebSockets, or workers are explicitly marked as **not implemented**.
+Based on the **implemented** routes and Pydantic schemas in this repo (`app/api/v1/*`, `app/schemas/*`). Anything not listed here is **not implemented** (no auth, no WebSockets/SSE/webhooks, no separate crawl workers).
+
+Live contract drift check: open **`GET /docs`** or **`GET /openapi.json`** on a running instance.
+
+---
+
+## 0. Quick start for integrators
+
+| Item | Value |
+|---|---|
+| Base URL (local) | `http://127.0.0.1:8000` |
+| Base URL (deployed on server `1930`) | On-host `http://127.0.0.1:8000`; from a laptop use `ssh -L 8000:127.0.0.1:8000 1930` then the local URL (TCP 8000 is typically not public) |
+| Content type | `application/json` on POST/PATCH bodies |
+| Auth | **None** — treat as trusted-network only |
+| Interactive docs | `GET /` → redirects to `/docs` |
+| Request tracing | Every response has `X-Request-ID`; API errors also put it under `error.request_id` |
+
+**Minimal happy path (instant crawl → read page body):**
+
+```bash
+BASE=http://127.0.0.1:8000
+
+# 1) Start crawl (async)
+curl -s -X POST "$BASE/api/v1/crawls" \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com/","max_pages":5,"max_depth":1}'
+# → 202 { "crawl_id": "...", "status": "queued", ... }
+
+# 2) Poll until completed|failed|cancelled
+curl -s "$BASE/api/v1/crawls/<crawl_id>"
+
+# 3) List documents from that crawl (max 50 returned)
+curl -s "$BASE/api/v1/documents?crawl_id=<crawl_id>"
+
+# 4) Metadata + entity/story links
+curl -s "$BASE/api/v1/documents/<document_id>"
+
+# 5) Full extracted text (list/detail do NOT include body)
+curl -s "$BASE/api/v1/documents/<document_id>/versions/<current_version>"
+```
+
+**Minimal monitoring path:**
+
+```bash
+# Preflight (synchronous, can take tens of seconds)
+curl -s -X POST "$BASE/api/v1/preflight" \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com/"}'
+# → 201 { "preflight_id": "...", "status": "completed"|"failed", ... }
+
+# Create source (starts as paused) then activate
+curl -s -X POST "$BASE/api/v1/sources" -H 'Content-Type: application/json' -d '{
+  "name": "Example",
+  "url": "https://example.com/",
+  "preflight_id": "<uuid>",
+  "interval_seconds": 900
+}'
+curl -s -X POST "$BASE/api/v1/sources/<source_id>/start"
+```
 
 ---
 
 ## 1. Architecture
 
 ```text
-Web Application (browser / SPA / SSR)
-      │
+Your app (SPA / SSR / another service)
+      │  HTTP JSON  (no auth)
       ▼
-Frontend (your app)
-      │  HTTP JSON  (no auth today)
-      ▼
-FastAPI API  (uvicorn app.main:app :8000)
+FastAPI  (uvicorn app.main:app :8000)
       │
-      ├── /health*              liveness / readiness / metrics
-      ├── /api/v1/preflight     discovery capability assessment
-      ├── /api/v1/crawls        instant crawl jobs (in-process asyncio)
-      ├── /api/v1/documents     extracted pages, versions, diffs, changes
-      ├── /api/v1/sources       continuous monitoring registration
-      ├── /api/v1/search        Postgres full-text search (+ instant crawl+search)
-      ├── /api/v1/domains       domain learning / capabilities
-      └── /api/v1/entities|stories   NER + story intelligence (read APIs)
+      ├── /health*                         liveness / readiness / metrics
+      ├── /api/v1/preflight                capability assessment
+      ├── /api/v1/crawls                   instant crawl jobs (in-process asyncio)
+      ├── /api/v1/documents                pages, versions, diffs, changes
+      ├── /api/v1/sources                  continuous monitoring registration
+      ├── /api/v1/search                   Postgres FTS (+ instant crawl+search)
+      ├── /api/v1/domains                  domain learning / capabilities
+      └── /api/v1/entities|stories         NER + story intelligence (read-only)
              │
-             ├── PostgreSQL   documents, versions, changes, entities, stories,
-             │                crawls, sources, domain stats, …
-             └── MinIO        raw HTML/bytes (referenced by raw_artifacts)
+             ├── PostgreSQL   single STI table `webintel_unified`
+             │                (schema contract: docs/unified_schema.sql)
+             └── MinIO        raw HTML/bytes (object refs on document versions)
 ```
-
-**Important implementation facts**
 
 | Concern | Actual behavior |
 |---|---|
 | API process | Single uvicorn process |
 | Crawl execution | `asyncio.create_task` inside the API process (not a separate worker) |
-| Monitoring scheduler | In-process loop started in FastAPI lifespan (`scheduler_loop`) |
-| Auth | **Not currently implemented** |
-| WebSockets / SSE / webhooks | **Not currently implemented** — poll HTTP |
+| Monitoring scheduler | In-process loop in FastAPI lifespan (`scheduler_loop`) |
+| Auth | **Not implemented** |
+| WebSockets / SSE / webhooks | **Not implemented** — **poll HTTP** |
+| CORS | **Not configured** in `app.main` — SPA on another origin needs a reverse proxy or CORS middleware you add |
 | OpenAPI | `GET /docs`, `GET /openapi.json` |
-| Root | `GET /` redirects to `/docs` |
 
 ---
 
-## 2. API Inventory
+## 2. Conventions
 
-Base URL (local): `http://127.0.0.1:8000`
+### 2.1 IDs
 
-**Common headers:** `Content-Type: application/json` for POST/PATCH bodies.  
-**Authentication:** none.  
-**Request ID:** responses include `X-Request-ID`; errors include `error.request_id`.
+Path and JSON fields use these names consistently:
 
-**Standard error shape**
+| Resource | ID field in JSON | Path param |
+|---|---|---|
+| Preflight | `preflight_id` | `{preflight_id}` |
+| Crawl job | `crawl_id` | `{crawl_id}` |
+| Document | `document_id` | `{document_id}` |
+| Source | `source_id` | `{source_id}` |
+| Entity | `entity_id` | `{entity_id}` |
+| Story | `story_id` | `{story_id}` |
+
+All of the above are UUIDs in path params. **Search hits** return `document_id` as a **string** (same UUID, different JSON type).
+
+### 2.2 Errors
+
+`APIError` responses:
 
 ```json
 {
@@ -66,20 +130,30 @@ Base URL (local): `http://127.0.0.1:8000`
 }
 ```
 
-Validation failures (Pydantic/FastAPI) typically return **422** with FastAPI’s default `{"detail":[…]}` shape (not the `APIError` envelope).
+Validation failures (Pydantic) return **422** with FastAPI’s default `{"detail":[…]}` — not the `error` envelope.
+
+Unhandled exceptions return **500** `INTERNAL_ERROR`.
+
+### 2.3 List pagination
+
+Most list endpoints are **unbounded** (or only lightly bounded in the repository). Exception:
+
+- `GET /api/v1/documents` silently returns at most **50** rows (`DocumentRepository.list_documents(limit=50)`). There is **no** `limit`/`offset` query param on that route today.
 
 ---
 
-### 2.1 Health
+## 3. API inventory
 
-| Method | Path | Purpose | Status |
+Unless noted, paths below are absolute from the base URL.
+
+### 3.1 Health
+
+| Method | Path | Status | Body |
 |---|---|---|---|
-| GET | `/health` | Liveness (no DB) | 200 `{"status":"ok"}` |
-| GET | `/health/live` | Liveness alias | 200 `{"status":"alive"}` |
-| GET | `/health/ready` | Postgres `SELECT 1` | 200 ready / **503** not_ready |
-| GET | `/metrics` | Prometheus text | 200 |
-
-Example:
+| GET | `/health` | 200 | `{"status":"ok"}` |
+| GET | `/health/live` | 200 | `{"status":"alive"}` |
+| GET | `/health/ready` | 200 / **503** | `{"status":"ready","database":"ok"}` or `{"status":"not_ready","database":"error: …"}` |
+| GET | `/metrics` | 200 | Prometheus text |
 
 ```bash
 curl -s http://127.0.0.1:8000/health/ready
@@ -87,15 +161,38 @@ curl -s http://127.0.0.1:8000/health/ready
 
 ---
 
-### 2.2 Preflight — ` /api/v1/preflight`
+### 3.2 Preflight — `/api/v1/preflight`
 
-#### `POST /api/v1/preflight`
+#### `POST /api/v1/preflight` → **201**
 
-- **Purpose:** Run synchronous capability assessment (DNS, HTTP, robots, sitemap, feeds, sample extract, optional browser).
-- **Body:** `{ "url": "https://example.com" }`
-- **Status:** **201**
-- **Response:** `PreflightReportResponse` (`preflight_id`, `status`, `capability`, `discovery`, `fetch`, `content`, `extraction`, `sample`, `limitations`, `recommendations`, `duration_ms`, `created_at`, `expires_at`, …)
-- **Errors:** `400 URL_BLOCKED` (SSRF / scheme)
+Synchronous capability assessment (DNS, HTTP, robots, sitemap, feeds, sample extract, optional browser). Can take **tens of seconds**.
+
+**Request**
+
+```json
+{ "url": "https://example.com" }
+```
+
+**Response (`PreflightReportResponse`)** — important fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| `preflight_id` | UUID | Required later for `POST /sources` |
+| `url` / `final_url` | string | Input vs post-redirect |
+| `status` | string | e.g. `completed`, `failed` |
+| `capability` | object | `score` 0–100, `confidence`, component scores, `score_semantics` |
+| `discovery` | object | `sitemap`, `rss`, `atom`, `html_links`, `estimated_discoverable_urls` |
+| `fetch` | object | `http`, `browser`, `recommended` (`http`\|`browser`\|…) |
+| `content` | object | `html`, `pdf`, `json`, `xml`, `images` |
+| `extraction` | object | `title`/`author`/`date`/`body` floats 0–1 |
+| `sample` | object | `tested`, `fetched`, `extractable` |
+| `limitations` | string[] | |
+| `recommendations` | string[] | |
+| `duration_ms` | float | |
+| `error` | string\|null | Set when assessment failed early |
+| `created_at` / `expires_at` | datetime | Source create rejects expired reports |
+
+**Blocked / bad URLs:** scheme/SSRF failures do **not** return HTTP 400. The handler still returns **201** with a **failed** report (`status`/`error` populated). Compare with crawls/sources, which raise `400 URL_BLOCKED`.
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/api/v1/preflight \
@@ -103,46 +200,56 @@ curl -s -X POST http://127.0.0.1:8000/api/v1/preflight \
   -d '{"url":"https://bluecloudsoftech.com/"}'
 ```
 
-#### `GET /api/v1/preflight/{preflight_id}`
-
-- **Purpose:** Fetch stored report
-- **Status:** 200 / **404** `PREFLIGHT_NOT_FOUND`
+#### `GET /api/v1/preflight/{preflight_id}` → 200 / **404** `PREFLIGHT_NOT_FOUND`
 
 ---
 
-### 2.3 Crawls — `/api/v1/crawls`
+### 3.3 Crawls — `/api/v1/crawls`
 
 #### `POST /api/v1/crawls` → **202 Accepted**
 
-- **Body:**
-  ```json
-  {
-    "url": "https://example.com/",
-    "max_pages": 10,
-    "max_depth": 1,
-    "same_domain_only": true
-  }
-  ```
-- **Behavior:** Creates `crawl_jobs` row, returns immediately, runs discovery + `run_crawl` in background. Instant crawl **skips** mandatory preflight (by design).
-- **Response:** `CrawlJobResponse` (`crawl_id`, `status` usually `queued`, `seed_url`, limits, timestamps, `statistics`, `error`)
-- **Errors:** `400 URL_BLOCKED`, `422` validation
+Creates a job and returns immediately; discovery + crawl run in a background asyncio task. Instant crawl does **not** require a prior preflight.
 
-#### `GET /api/v1/crawls`
+**Request (`CrawlRequest`)**
 
-- List jobs → `list[CrawlJobResponse]`
+| Field | Type | Default | Constraints |
+|---|---|---|---|
+| `url` | string | required | Validated for scheme/SSRF → else `400 URL_BLOCKED` |
+| `max_pages` | int\|null | settings `CRAWL_DEFAULT_MAX_PAGES` (100) | 1–1000 |
+| `max_depth` | int\|null | settings `CRAWL_DEFAULT_MAX_DEPTH` (3) | 0–10 |
+| `same_domain_only` | bool | `true` | |
 
-#### `GET /api/v1/crawls/{crawl_id}`
+```json
+{
+  "url": "https://example.com/",
+  "max_pages": 10,
+  "max_depth": 1,
+  "same_domain_only": true
+}
+```
 
-- Job detail / poll status (`queued|running|completed|cancelled|failed|cancelling`)
-- **404** `CRAWL_NOT_FOUND`
+**Response (`CrawlJobResponse`)**
 
-#### `GET /api/v1/crawls/{crawl_id}/pages`
+| Field | Type |
+|---|---|
+| `crawl_id` | UUID |
+| `status` | `queued`\|`running`\|`cancelling`\|`completed`\|`cancelled`\|`failed` |
+| `seed_url` | string |
+| `max_pages` / `max_depth` | int |
+| `created_at` / `started_at` / `completed_at` | datetime\|null |
+| `error` | string\|null |
+| `statistics` | object\|null | Counters filled as the job progresses |
 
-- Per-URL attempts: `url`, `status`, `fetch_strategy`, `http_status`, `document_id`, `error`, …
+#### Other crawl routes
 
-#### `POST /api/v1/crawls/{crawl_id}/cancel`
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/crawls` | All jobs → `CrawlJobResponse[]` |
+| GET | `/api/v1/crawls/{crawl_id}` | Poll this; **404** `CRAWL_NOT_FOUND` |
+| GET | `/api/v1/crawls/{crawl_id}/pages` | Per-URL attempts (`CrawlPageResponse`) |
+| POST | `/api/v1/crawls/{crawl_id}/cancel` | If `queued`/`running` → status `cancelling`, then terminal `cancelled` |
 
-- Requests cancel if `queued`/`running`; returns updated job
+**`CrawlPageResponse` fields:** `url`, `normalized_url`, `depth`, `status`, `fetch_strategy`, `http_status`, `document_id`, `error`.
 
 **Poll pattern (required — no push):**
 
@@ -150,44 +257,73 @@ curl -s -X POST http://127.0.0.1:8000/api/v1/preflight \
 CRAWL_ID=…
 curl -s http://127.0.0.1:8000/api/v1/crawls/$CRAWL_ID
 # repeat until status is completed|cancelled|failed
+# recommended: 1–2s while queued/running, then backoff
 ```
 
 ---
 
-### 2.4 Documents — `/api/v1/documents`
+### 3.4 Documents — `/api/v1/documents`
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/documents` | List; query: `crawl_id`, `domain`, `page_type` |
-| GET | `/documents/{id}` | Detail + latest change + `entity_ids` + optional `story_id` |
-| GET | `/documents/{id}/changes` | Stored change events; query: `severity`, `change_type`, `from`, `to` |
-| GET | `/documents/{id}/versions` | Version summaries |
-| GET | `/documents/{id}/versions/{n}` | Full version body |
-| GET | `/documents/{id}/diff?from_version=&to_version=` | Unified line diff |
+| GET | `/api/v1/documents` | List; query: `crawl_id`, `domain`, `page_type` (**max 50**, no pagination params) |
+| GET | `/api/v1/documents/{document_id}` | Detail + latest change + `entity_ids` + optional `story_id` |
+| GET | `/api/v1/documents/{document_id}/changes` | Stored change events; query: `severity`, `change_type`, `from`, `to` (ISO datetimes) |
+| GET | `/api/v1/documents/{document_id}/versions` | Version summaries (no body text) |
+| GET | `/api/v1/documents/{document_id}/versions/{n}` | Full version including `content` |
+| GET | `/api/v1/documents/{document_id}/diff?from_version=&to_version=` | Unified line diff (`from_version` & `to_version` required) |
 
-**DocumentResponse (list/detail)** includes: `document_id`, `url`, `domain`, `title`, `author`, `published_at`, `language`, `page_type`, `extraction_method`, `extraction_confidence`, `current_version`, `collected_at`, change summary fields, `entity_ids`, `story_id`, `story_match_confidence`.
+**`DocumentResponse`**
 
-**Note:** List/detail do **not** return full `current_content`. Full text is on **version** endpoints (`DocumentVersionResponse.content`). That is an integration gap for “document explorer body” UX — use `GET …/versions/{current_version}` or search snippets.
+| Field | List | Detail |
+|---|---|---|
+| `document_id`, `url`, `canonical_url`, `domain` | yes | yes |
+| `title`, `author`, `published_at`, `language`, `content_type`, `page_type` | yes | yes |
+| `extraction_method`, `extraction_confidence`, `current_version`, `collected_at` | yes | yes |
+| `latest_change_type` / `latest_change_severity` / `latest_change_at` | usually null | filled from latest stored change |
+| `entity_ids` | always `[]` | UUIDs from mentions |
+| `story_id` / `story_match_confidence` | null | set when attached (`confidence` is a string tier, e.g. HIGH/MEDIUM/LOW) |
 
-**Errors:** `404 DOCUMENT_NOT_FOUND`, `404 VERSION_NOT_FOUND`
+**Body text is never on list/detail.** Use:
+
+```bash
+curl -s "http://127.0.0.1:8000/api/v1/documents/$DOC_ID/versions/$CURRENT_VERSION"
+# → DocumentVersionResponse: version_number, change_type, title, content, content_hash, created_at
+```
+
+**`ChangeEventResponse`:** `change_id`, `document_id`, `previous_version_id`, `current_version_id`, `page_type`, `change_type`, `severity`, `similarity`, `change_confidence`, `changed_fields`, `diff` (object), `reasons`, `created_at`.
+
+**`DiffResponse`:** `document_id`, `from_version`, `to_version`, `changed`, `summary.{added_lines,removed_lines}`, `diff` (string[] unified diff lines).
+
+**Errors:** `404 DOCUMENT_NOT_FOUND`, `404 VERSION_NOT_FOUND`.
 
 ---
 
-### 2.5 Sources (monitoring) — `/api/v1/sources`
+### 3.5 Sources (monitoring) — `/api/v1/sources`
 
 | Method | Path | Status | Purpose |
 |---|---|---|---|
-| POST | `/sources` | 201 | Register monitored source (**requires valid, non-expired preflight**, same domain) |
-| GET | `/sources` | 200 | List |
-| GET | `/sources/{id}` | 200/404 | Detail |
-| PATCH | `/sources/{id}` | 200 | Update name/type/policy |
-| DELETE | `/sources/{id}` | 204 | Delete |
-| POST | `/sources/{id}/start` | 200 | Activate (`active`) — alias `/resume` |
-| POST | `/sources/{id}/pause` | 200 | Pause |
-| GET | `/sources/{id}/events` | 200 | Monitoring events NEW/UPDATED/UNCHANGED/REMOVED/… |
-| GET | `/sources/{id}/statistics` | 200 | Interval, counters, doc/event totals |
+| POST | `/api/v1/sources` | 201 | Register source (**requires valid, non-expired preflight**, same registrable domain) |
+| GET | `/api/v1/sources` | 200 | List |
+| GET | `/api/v1/sources/{source_id}` | 200 | Detail; **404** `SOURCE_NOT_FOUND` |
+| PATCH | `/api/v1/sources/{source_id}` | 200 | Update `name` / `source_type` / `crawl_policy` only (not intervals) |
+| DELETE | `/api/v1/sources/{source_id}` | 204 | Delete |
+| POST | `/api/v1/sources/{source_id}/start` | 200 | Set `active` (alias: `/resume`) |
+| POST | `/api/v1/sources/{source_id}/pause` | 200 | Set `paused` |
+| GET | `/api/v1/sources/{source_id}/events` | 200 | Monitoring events |
+| GET | `/api/v1/sources/{source_id}/statistics` | 200 | Interval + counters |
 
-**Create body:**
+**Create body (`SourceCreateRequest`)**
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `name` | string | required | |
+| `url` | string | required | `400 URL_BLOCKED` on scheme/SSRF |
+| `preflight_id` | UUID | required | Must exist, unexpired, same domain |
+| `source_type` | string | `"unknown"` | Free string (e.g. `corporate`) |
+| `interval_seconds` | int | 900 | Min interval; 60–86400 |
+| `max_interval_seconds` | int | 86400 | 60–604800 |
+| `crawl_policy` | object\|null | null | See below |
 
 ```json
 {
@@ -208,286 +344,264 @@ curl -s http://127.0.0.1:8000/api/v1/crawls/$CRAWL_ID
 }
 ```
 
-**Errors:** `400 URL_BLOCKED`, `400 PREFLIGHT_EXPIRED`, `400 PREFLIGHT_URL_MISMATCH`, `404 PREFLIGHT_NOT_FOUND`, `409 SOURCE_ALREADY_EXISTS`
+**Initial status after create:** `paused`. Call `/start` (or `/resume`) before the scheduler will crawl it.
 
-Scheduler: in-process; picks `next_crawl_at <= now` roughly every `SCHEDULER_POLL_INTERVAL_SECONDS` (default 30).
+**`SourceResponse`:** `source_id`, `name`, `base_url`, `domain`, `source_type`, `status`, `crawl_policy`, `min_interval_seconds`, `max_interval_seconds`, `current_interval_seconds`, `created_at`, `updated_at`, `last_crawl_at`, `next_crawl_at`.
+
+**Create errors:** `400 URL_BLOCKED`, `400 PREFLIGHT_EXPIRED`, `400 PREFLIGHT_URL_MISMATCH`, `404 PREFLIGHT_NOT_FOUND`, `409 SOURCE_ALREADY_EXISTS`.
+
+Scheduler picks `next_crawl_at <= now` about every `SCHEDULER_POLL_INTERVAL_SECONDS` (default 30).
 
 ---
 
-### 2.6 Search — `/api/v1/search`
+### 3.6 Search — `/api/v1/search`
 
 #### `POST /api/v1/search`
+
+Postgres full-text search over stored documents.
+
+**Request**
+
+| Field | Type | Default |
+|---|---|---|
+| `query` | string\|null | null |
+| `domain` | string\|null | null |
+| `source_id` | string\|null | null |
+| `language` | string\|null | null |
+| `date_from` / `date_to` | datetime\|null | null |
+| `limit` | int | 20 (1–100) |
+| `offset` | int | 0 |
 
 ```json
 {
   "query": "cybersecurity",
   "domain": "bluecloudsoftech.com",
-  "source_id": null,
-  "language": null,
-  "date_from": null,
-  "date_to": null,
   "limit": 20,
   "offset": 0
 }
 ```
 
-→ `{ "total": N, "results": [ { document_id, title, url, domain, snippet, … } ] }`
+**Response:** `{ "total": N, "results": [ SearchHitResponse, … ] }`
+
+**`SearchHitResponse`:** `document_id` (**string**), `title`, `url`, `domain`, `snippet`, `published_at`, `collected_at`, `version`, `content_hash`, `relevance`.
 
 #### `POST /api/v1/search/instant`
 
-Starts a crawl, waits up to `wait_seconds`, returns partial search hits + `crawl_id` / `crawl_status` / `note`. Client should continue polling crawl + search.
+Starts a crawl, waits up to `wait_seconds`, returns whatever is indexed so far plus `crawl_id` so you can keep polling.
+
+**Request**
+
+| Field | Type | Default | Constraints |
+|---|---|---|---|
+| `url` | string | required | `400 URL_BLOCKED` possible |
+| `query` | string\|null | null | Substring filter on title/content for this crawl’s docs |
+| `max_pages` | int | 5 | 1–50 |
+| `wait_seconds` | float | 8.0 | 0–30 |
+
+**Response (`InstantSearchResponse`):** `crawl_id` (string), `crawl_status`, `total`, `results`, `note` (tells you if crawl still running).
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/api/v1/search/instant \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com/","query":"example","max_pages":5,"wait_seconds":8}'
+```
 
 ---
 
-### 2.7 Domains — `/api/v1/domains`
+### 3.7 Domains — `/api/v1/domains`
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/domains/{domain}/profile` | Health, preferred strategy, patterns, politeness |
-| GET | `/domains/{domain}/capabilities` | Interpreted discovery/fetch/browser/extraction capability |
+| GET | `/api/v1/domains/{domain}/profile` | Health, preferred strategy, patterns, politeness |
+| GET | `/api/v1/domains/{domain}/capabilities` | Interpreted discovery/fetch/browser/extraction capability |
 
-Domain is the hostname/domain string as stored (e.g. `bluecloudsoftech.com`).
+`{domain}` is the hostname as stored (e.g. `bluecloudsoftech.com`).
+
+Both return **404** `DOMAIN_NOT_FOUND` if that domain has never been crawled (no learning row yet).
 
 ---
 
-### 2.8 Intelligence — entities & stories
+### 3.8 Intelligence — entities & stories
 
-Mounted at `/api/v1` (no extra prefix beyond path).
+Mounted at `/api/v1` (paths below are full).
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/entities` | List; query `entity_type` |
-| GET | `/entities/{id}` | Detail |
-| GET | `/entities/{id}/documents` | `{ entity_id, document_ids: [] }` |
-| GET | `/entities/{id}/stories` | Stories linked to entity |
-| GET | `/stories` | List; query `status`, `from`, `to` |
-| GET | `/stories/{id}` | Summary |
-| GET | `/stories/{id}/documents` | Attachment scores / evidence |
-| GET | `/stories/{id}/entities` | Entities in story |
-| GET | `/stories/{id}/sources` | Domains contributing |
-| GET | `/stories/{id}/timeline` | Ordered by published_at / attach time |
+| GET | `/api/v1/entities` | List; query `entity_type` |
+| GET | `/api/v1/entities/{entity_id}` | Detail |
+| GET | `/api/v1/entities/{entity_id}/documents` | `{ "entity_id", "document_ids": [] }` |
+| GET | `/api/v1/entities/{entity_id}/stories` | Stories linked to entity |
+| GET | `/api/v1/stories` | List; query `status`, `from`, `to` |
+| GET | `/api/v1/stories/{story_id}` | Summary |
+| GET | `/api/v1/stories/{story_id}/documents` | Attachment scores / evidence |
+| GET | `/api/v1/stories/{story_id}/entities` | Entities in story |
+| GET | `/api/v1/stories/{story_id}/sources` | Domains contributing |
+| GET | `/api/v1/stories/{story_id}/timeline` | Ordered by `published_at` (else attach time) |
 
-**Errors:** `404 ENTITY_NOT_FOUND`, `404 STORY_NOT_FOUND`
+**`EntityResponse`:** `entity_id`, `entity_type`, `canonical_name`, `normalized_name`, `language`, `confidence`, `first_seen_at`, `last_seen_at`.
 
-**Missing (not implemented):**
+**`StorySummaryResponse`:** `story_id`, `canonical_title`, `status`, `first_seen_at`, `last_activity_at`, `document_count`, `source_count`, `entity_count`.
 
-- `GET /entities/{id}/mentions` or document mention detail API (mentions exist in DB; only `entity_ids` on document detail)
+**Errors:** `404 ENTITY_NOT_FOUND`, `404 STORY_NOT_FOUND`.
+
+**Not implemented:**
+
+- Mention detail API (`entity_mentions` exist in storage; only `entity_ids` on document detail)
 - Write/update/delete for entities/stories
-- Streaming intelligence progress events
+- Streaming intelligence progress
 
-Intelligence runs **inside crawl** on NEW/UPDATED documents only (not on UNCHANGED). Failures are logged; crawl still succeeds.
+Intelligence runs **inside crawl** on **NEW/UPDATED** documents only (not UNCHANGED). Failures are logged; the crawl can still complete.
 
 ---
 
-## 3. End-to-End Web Workflows
+## 4. End-to-end workflows
 
-### 3.1 Add / register a website (monitoring)
+### 4.1 Register a website for monitoring
 
-1. `POST /api/v1/preflight` with URL  
-2. Store `preflight_id` (must be unexpired)  
-3. `POST /api/v1/sources` with `preflight_id`  
-4. `POST /api/v1/sources/{id}/start`  
-5. Poll `GET /api/v1/sources/{id}` / `…/events` / `…/statistics`
+1. `POST /api/v1/preflight` → keep `preflight_id` while unexpired  
+2. `POST /api/v1/sources` with that id (source is **paused**)  
+3. `POST /api/v1/sources/{id}/start`  
+4. Poll `GET …/sources/{id}`, `…/events`, `…/statistics`
 
-### 3.2 Instant discovery + crawl (no source)
+### 4.2 Instant crawl (no source)
 
-1. `POST /api/v1/crawls`  
-2. Poll `GET /api/v1/crawls/{id}` until terminal status  
-3. Optional: `GET /api/v1/crawls/{id}/pages`  
+1. `POST /api/v1/crawls` → `crawl_id`  
+2. Poll `GET /api/v1/crawls/{id}` until terminal  
+3. Optional: `GET …/pages`  
 4. `GET /api/v1/documents?crawl_id=`  
+5. `GET /api/v1/documents/{id}/versions/{current_version}` for body  
 
-### 3.3 Retrieve crawled pages / extracted content
+### 4.3 Detect updates
 
-1. List documents (`crawl_id` or `domain`)  
-2. `GET /documents/{id}` for metadata + entity/story links  
-3. `GET /documents/{id}/versions/{current_version}` for clean text body  
+1. `GET /api/v1/sources/{id}/events` (`UPDATED`, etc.)  
+2. and/or `GET /api/v1/documents/{id}/changes`  
+3. and/or `GET /api/v1/documents/{id}/diff?from_version=&to_version=`  
 
-### 3.4 Detect updated content
+### 4.4 Entities / stories
 
-1. Monitoring events: `GET /sources/{id}/events` (`UPDATED`, change_summary)  
-2. Or `GET /documents/{id}/changes`  
-3. Or `GET /documents/{id}/diff?from_version=&to_version=`  
+After a NEW/UPDATED crawl finishes: `GET /api/v1/entities`, `GET /api/v1/stories`, or follow `entity_ids` / `story_id` from document detail.
 
-### 3.5 Entities / NER / stories
+### 4.5 Search
 
-1. After NEW/UPDATED crawl completes, `GET /entities`, `GET /stories`  
-2. Drill: entity documents/stories; story documents/entities/timeline  
-3. From a document: use `entity_ids` / `story_id` on detail response  
+1. `POST /api/v1/search`  
+2. or `POST /api/v1/search/instant` then poll crawl + search again  
 
-### 3.6 Search / filter
+### 4.6 Retries
 
-1. `POST /api/v1/search` with query + optional domain/source/date filters  
-2. Or `POST /search/instant` for ad-hoc crawl+search  
-
-### 3.7 Processing / failures
-
-1. Crawl `status` + `error` + `statistics`  
-2. Crawl pages `error` / `http_status`  
-3. Source events `CRAWL_FAILED` / `REMOVED`  
-4. `/metrics` for counters  
-5. Server logs for `INTELLIGENCE_FAILED` (crawl still OK)
-
-### 3.8 Retries
-
-- **Not a first-class API.** Re-`POST /crawls` with same URL (may be UNCHANGED).  
+- No first-class retry API. Re-`POST /crawls` (may be UNCHANGED).  
 - Monitoring reschedules via `next_crawl_at`.  
 - Cancelled jobs are not auto-restarted.
 
 ---
 
-## 4. Frontend Integration (screens → APIs)
+## 5. Frontend map (screens → APIs)
 
 | UI | Primary APIs |
 |---|---|
-| Dashboard | `/health/ready`, recent `GET /crawls`, `GET /sources`, `/metrics` |
+| Dashboard | `/health/ready`, `GET /api/v1/crawls`, `GET /api/v1/sources`, `/metrics` |
 | Website / source management | preflight + sources CRUD + start/pause |
-| Crawl configuration | form → `POST /crawls` body fields |
-| Crawl execution / status | poll `GET /crawls/{id}`, pages list, cancel |
-| Page / document explorer | `GET /documents`, filters |
-| Document detail | `GET /documents/{id}`, versions, changes, diff |
-| Entity explorer | `GET /entities`, type filter |
-| Entity detail | entity + documents + stories |
-| Story explorer | `GET /stories` |
-| Story detail | story + documents + entities + sources + timeline |
-| Search | `POST /search`, optional instant |
-| Domain ops | `/domains/{d}/profile`, `/capabilities` |
-| Error monitoring | crawl errors, source events, metrics |
+| Crawl run | `POST /api/v1/crawls` → poll job + pages |
+| Document explorer | `GET /api/v1/documents` (+ version body endpoint) |
+| Document detail | document + versions + changes + diff |
+| Entity / story explorers | `/api/v1/entities*`, `/api/v1/stories*` |
+| Search | `POST /api/v1/search`, optional `/instant` |
+| Domain ops | `/api/v1/domains/{d}/profile`, `/capabilities` |
+| Errors | crawl `error`, page errors, source events, `X-Request-ID` |
 
 ---
 
-## 5. Authentication and Security
+## 6. Auth and security (integrator obligations)
 
-> **Not currently implemented** (API authn/authz).
+> API authn/authz is **not implemented**.
 
-What a web app must account for today:
-
-- Treat the API as **trusted-network only** (localhost / private VPC / reverse proxy with your own auth).
-- Do **not** expose `:8000` publicly without a gateway that adds auth, TLS, and rate limits.
-- SSRF protections exist **server-side** (`URL_BLOCKED`) for crawl/preflight/source URLs — still validate user input in the UI.
-- CORS is not specially configured in `app/main.py` for a separate SPA origin — you will likely need a reverse proxy or to add CORS middleware (not present now).
-- Secrets (`HF_TOKEN`, DB, MinIO) stay server-side in `.env`.
+- Keep the API on localhost / private VPC / gateway with **your** auth + TLS + rate limits.  
+- Server-side SSRF checks emit `URL_BLOCKED` on crawl/source (and fail preflight reports); still validate URLs in the UI.  
+- No CORS middleware — plan a reverse proxy or add CORS before a browser SPA on another origin talks to `:8000`.  
+- Secrets (`DATABASE_URL`, MinIO, `HF_TOKEN`) stay in server `.env` only.
 
 ---
 
-## 6. Async Processing
+## 7. Async processing
 
-| Topic | Supported approach |
+| Topic | Approach |
 |---|---|
 | Long crawls | `202` + background task; **poll** job status |
-| Progress | `statistics` on job + `/crawls/{id}/pages`; no % complete field |
-| Workers | **None separate** — same process as API |
-| WebSockets / SSE / webhooks | **Not implemented** |
-| Retries | Manual re-POST; monitoring schedule |
-| Failures | Terminal `failed` + `error`; page-level errors on pages list |
-| Intelligence lag | After NEW/UPDATED; poll entities/stories; no job for NER alone |
+| Progress | `statistics` on job + `/crawls/{id}/pages`; no percent-complete field |
+| Workers | None separate — same process as API |
+| Push | Not implemented |
+| Intelligence | After NEW/UPDATED; poll entities/stories |
 
-**Recommended poll interval:** 1–2s while `queued`/`running`, backoff after 30s.
+**Poll interval:** 1–2s while `queued`/`running`, backoff after ~30s.
 
 ---
 
-## 7. Data Model (as implemented)
+## 8. Persistence model (API-facing)
+
+Logical resources (what your app thinks about):
 
 ```text
-preflight_reports
-        │ (required to create)
-        ▼
-     sources ──< source_urls
-        │            monitoring_events
-        │
-        ▼
-   crawl_jobs ── crawl_runs
-        │         crawl_pages
-        ▼
-   documents ── document_versions ──► raw_artifacts ──► MinIO object
-        │         document_changes
-        │
-        ├── entity_mentions ──► entities ── entity_aliases
-        │
-        └── story_documents ──► stories ── story_entities ──► entities
-
-fetch_strategy_stats / url_pattern_stats  (per domain / pattern learning)
+preflight  ──required──►  source  ──scheduler──►  crawl job ──► documents
+                                                              │
+                                                              ├── versions (+ MinIO raw bytes)
+                                                              ├── changes
+                                                              ├── entity mentions ──► entities
+                                                              └── story links ──► stories
+domain_profile / url_pattern   (learning; powers /domains/*)
 ```
 
-**Change lifecycle:** NEW → version 1 + intelligence; UPDATED → new version + `document_changes` + intelligence; UNCHANGED → no new version, **no** intelligence rerun.
+Physically, these are rows in **`webintel_unified`** (STI by `record_kind`) plus MinIO objects. Apply `docs/unified_schema.sql` manually once. **Do not** run `alembic upgrade head` against this database.
+
+**Change lifecycle:** NEW → version 1 + intelligence; UPDATED → new version + change event + intelligence; UNCHANGED → no new version, **no** intelligence rerun.
 
 ---
 
-## 8. Example Frontend Flow
+## 9. Error handling cheat sheet
 
-```text
-User pastes https://bluecloudsoftech.com/
-        ↓
-POST /api/v1/crawls  { url, max_pages: 1, max_depth: 0 }
-        ↓ 202 { crawl_id, status: "queued" }
-Frontend polls GET /api/v1/crawls/{crawl_id}
-        ↓ status → "completed"
-GET /api/v1/documents?crawl_id={crawl_id}
-        ↓
-GET /api/v1/documents/{document_id}
-        ↓ entity_ids[], story_id?
-GET /api/v1/documents/{id}/versions/{current_version}   ← body text
-        ↓
-GET /api/v1/entities / GET /api/v1/stories/{story_id}/…
-```
-
-Monitoring variant: preflight → create source → start → poll events.
-
----
-
-## 9. Error Handling
-
-| Situation | HTTP | Frontend action |
-|---|---|---|
-| Bad JSON / field validation | 422 | Show `detail` field errors |
-| SSRF / blocked URL | 400 `URL_BLOCKED` | Block submit; explain policy |
-| Not found | 404 `*_NOT_FOUND` | Empty state / navigate away |
-| Source duplicate | 409 `SOURCE_ALREADY_EXISTS` | Link to existing source |
-| Preflight expired | 400 `PREFLIGHT_EXPIRED` | Re-run preflight |
-| Crawl failure | job `status=failed` | Show `error`; allow retry POST |
-| Page fetch failure | page `status=failed` | Show per-URL error; rest may succeed |
-| Intelligence failure | crawl still completed | Entities may be incomplete; retry crawl only if content changes |
-| Ready check fail | 503 | Disable UI actions; show infra down |
-| Timeouts | client-side | Keep polling crawl_id; don’t assume failure on slow sites |
-| Rate limits | **Not implemented** on API | Add at gateway if public |
-| Partial instant search | 200 with note | Continue poll crawl + search |
-| Auth errors | **N/A** | Add when you put auth in front |
+| Situation | HTTP | Code / shape | Frontend action |
+|---|---|---|---|
+| Bad JSON / fields | 422 | FastAPI `detail` | Field errors |
+| SSRF / blocked URL (crawl/source/instant search) | 400 | `URL_BLOCKED` | Block submit |
+| Blocked URL (preflight) | 201 | report `status=failed` | Show `error` on report |
+| Not found | 404 | `*_NOT_FOUND` | Empty state |
+| Source duplicate | 409 | `SOURCE_ALREADY_EXISTS` | Open existing |
+| Preflight expired / domain mismatch | 400 | `PREFLIGHT_EXPIRED` / `PREFLIGHT_URL_MISMATCH` | Re-run preflight |
+| Domain never crawled | 404 | `DOMAIN_NOT_FOUND` | Prompt first crawl |
+| Crawl failure | 200 on poll | job `status=failed` | Show `error`; allow re-POST |
+| Ready fail | 503 | `not_ready` | Disable write actions |
+| Unexpected | 500 | `INTERNAL_ERROR` | Show `request_id` |
+| Rate limits | — | **not implemented** | Add at gateway |
 
 Always surface `error.request_id` / `X-Request-ID` in support UI.
 
 ---
 
-## 10. Integration Checklist
+## 10. Integration checklist
 
-- [ ] External Postgres has `docs/unified_schema.sql` applied (manual)  
-- [ ] `.env` has real `DATABASE_URL` (asyncpg URL) + MinIO settings  
-- [ ] API reachable; `GET /health` and `GET /health/ready` OK  
-- [ ] MinIO up; bucket creatable by API  
-- [ ] spaCy model and/or GLiNER cache if you need NER  
-- [ ] Playwright Chromium if JS-heavy sites matter  
-- [ ] **Do not** run `alembic upgrade head` against this database  
-- [ ] Network policy: API not public without your auth layer  
-- [ ] CORS / reverse proxy planned for SPA origin  
-- [ ] Instant crawl UI: create + poll + pages + documents + version body  
+- [ ] Postgres has `docs/unified_schema.sql` applied (manual)  
+- [ ] `.env`: real `DATABASE_URL` (asyncpg; URL-encode `@` in passwords) + MinIO  
+- [ ] `GET /health` and `GET /health/ready` OK  
+- [ ] MinIO reachable; API can create bucket  
+- [ ] Do **not** run Alembic against this DB  
+- [ ] Network: not public without your auth layer; CORS/proxy if browser SPA  
+- [ ] Instant crawl UI: create → poll → pages → documents → **version body**  
 - [ ] Monitoring UI: preflight → source → start/pause → events  
-- [ ] Document change UI: changes + diff  
-- [ ] Intelligence UI: entities + stories (+ accept mention API gap)  
-- [ ] Search UI: `POST /search`  
-- [ ] Domain ops (optional): profile/capabilities  
-- [ ] Error + request_id display  
-- [ ] Polling strategy documented for long crawls  
-- [ ] OpenAPI (`/docs`) bookmarked for contract drift checks  
+- [ ] Document changes: `/changes` + `/diff`  
+- [ ] Intelligence UI: entities + stories (accept no mention API)  
+- [ ] Search: `POST /search` (+ optional instant)  
+- [ ] Display `X-Request-ID` on failures  
+- [ ] Bookmark `/docs` for contract drift  
 
-### Still missing for “complete” product-grade web integration
+### Known product gaps
 
 | Gap | Status |
 |---|---|
 | Authentication / authorization | Missing |
 | CORS middleware | Missing |
-| WebSockets/SSE/webhooks | Missing |
-| Separate crawl workers / queue UI | Missing (in-process only) |
-| Document body on list/detail | Partial — use versions endpoint |
-| Entity mention detail API | Missing (DB has `entity_mentions`) |
-| Paginated list APIs with cursors | Mostly unbounded lists |
+| WebSockets / SSE / webhooks | Missing |
+| Separate crawl workers | Missing (in-process only) |
+| Document body on list/detail | Use versions endpoint |
+| Entity mention detail API | Missing |
+| Cursor / limit on most lists | Documents hard-capped at 50; others mostly unbounded |
 | Multi-tenant isolation | Missing |
 
 ---
@@ -495,7 +609,7 @@ Always surface `error.request_id` / `X-Request-ID` in support UI.
 ## Related repo files
 
 - APIs: `app/api/v1/*.py`
-- Schemas: `app/schemas/*.py`
-- Models: `app/db/models/*.py`
-- Unified schema proposal (eval only): `docs/unified_schema.sql`
-- Local setup overview: `README.md` (Setup section)
+- Request/response schemas: `app/schemas/*.py`
+- ORM / STI models: `app/db/models/*.py`
+- DB contract (apply manually): `docs/unified_schema.sql`
+- Local / ops overview: `README.md`
