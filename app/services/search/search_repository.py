@@ -1,27 +1,46 @@
 """Search storage abstraction (spec section 56): the API layer talks only
 to `SearchRepository`. `PostgresSearchRepository` is the implementation --
-full-text search against `documents.search_vector`, a Postgres stored
-generated column (`to_tsvector('english', title || ' ' || current_content)`,
-recomputed by the database itself whenever either input changes) with a
-GIN index, per spec Phase Q. `index_document`/`update_document`/
-`delete_document` are no-ops here for the same reason as before -- the
-generated column keeps itself in sync, there's still nothing to push to a
-separate index -- but the methods exist on the interface so an
-`OpenSearchRepository`, which *would* need real indexing calls, can be
-swapped in without touching callers.
+full-text search against `webintel_unified`. Unlike the old `documents`
+table, there's no stored generated `search_vector` column here -- only a
+GIN index over the raw expression
+(`ix_webintel_document_fts`: `to_tsvector('english', coalesce(title, '') ||
+' ' || coalesce(content, ''))`, `WHERE record_kind='document'`) -- so the
+query builds that same expression inline via `_document_tsvector()` on
+every call. It must match the index expression character-for-character
+(including the `content` null-coalesce, which the old stored column didn't
+need since it was itself already coalesced at write time) or Postgres won't
+recognize the query as index-eligible and will fall back to a sequential
+scan -- correctness-preserving but slow, not silently wrong.
+`index_document`/`update_document`/`delete_document` are no-ops here for
+the same reason as before -- nothing to push to a separate index -- but
+the methods exist on the interface so an `OpenSearchRepository`, which
+*would* need real indexing calls, can be swapped in without touching
+callers.
 """
 
 from __future__ import annotations
 
 import abc
 
-from sqlalchemy import func, literal, select
+from sqlalchemy import func, literal, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.document import Document
 from app.services.search.models import SearchFilters, SearchHit, SearchResults
 
 _SNIPPET_CHARS = 240
+
+
+def _document_tsvector():
+    # Must match docs/unified_schema.sql ix_webintel_document_fts *exactly*
+    # (literal '' and ' ', not bind parameters), or Postgres will not use
+    # the expression GIN index.
+    empty = literal_column("''")
+    space = literal_column("' '")
+    return func.to_tsvector(
+        literal_column("'english'"),
+        func.coalesce(Document.title, empty) + space + func.coalesce(Document.content, empty),
+    )
 
 
 class SearchRepository(abc.ABC):
@@ -72,8 +91,9 @@ class PostgresSearchRepository(SearchRepository):
 
         if filters.query:
             tsquery = func.plainto_tsquery("english", filters.query)
-            conditions.append(Document.search_vector.op("@@")(tsquery))
-            rank = func.ts_rank(Document.search_vector, tsquery)
+            tsvector = _document_tsvector()
+            conditions.append(tsvector.op("@@")(tsquery))
+            rank = func.ts_rank(tsvector, tsquery)
             row_stmt = select(Document, rank).order_by(rank.desc())
         else:
             row_stmt = select(Document, literal(0.0)).order_by(Document.collected_at.desc())

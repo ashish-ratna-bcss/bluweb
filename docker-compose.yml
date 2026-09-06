@@ -1,20 +1,8 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: webintel
-      POSTGRES_PASSWORD: webintel
-      POSTGRES_DB: webintel
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U webintel"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
+  # Postgres is NOT run via Docker: the app connects to an existing,
+  # already-provisioned external Postgres server (schema:
+  # docs/unified_schema.sql, applied out-of-band). Set the real
+  # connection string in .env's DATABASE_URL before starting `api` below.
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -34,11 +22,12 @@ services:
 
   api:
     build: .
-    command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    # No `alembic upgrade head` step: the schema already exists on the
+    # external Postgres server (docs/unified_schema.sql) and must not be
+    # auto-created/altered by this app.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://webintel:webintel@postgres:5432/webintel
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: webintel
       MINIO_SECRET_KEY: webintel12345
@@ -46,8 +35,6 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
       minio:
         condition: service_healthy
 
@@ -56,5 +43,4 @@ services:
 # to keep instant-crawl usage (this file) fast and light.
 
 volumes:
-  postgres_data:
   minio_data:

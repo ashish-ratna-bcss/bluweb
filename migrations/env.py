@@ -1,3 +1,10 @@
+# NOTE: Alembic is no longer used to manage this app's schema. The app now
+# targets a single existing `webintel_unified` table on an external Postgres
+# server (schema: docs/unified_schema.sql, applied out-of-band). The
+# migrations/versions/*.py history below describes the OLD normalized
+# schema and must never be run against that server -- do NOT run
+# `alembic upgrade head` (or autogenerate a new revision) against it.
+
 import asyncio
 from logging.config import fileConfig
 

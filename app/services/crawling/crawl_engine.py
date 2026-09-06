@@ -21,7 +21,6 @@ from crawlee import Request
 from crawlee.storages import RequestQueue
 
 from app.core.config import Settings
-from app.db.models.document import RawArtifact
 from app.db.repositories.crawl_repository import CrawlRepository
 from app.db.repositories.document_repository import DocumentRepository
 from app.db.repositories.source_repository import SourceRepository
@@ -532,13 +531,6 @@ async def _process_page(
             raw_bytes,
             fetch_result.content_type or "application/octet-stream",
         )
-        raw_artifact = RawArtifact(
-            id=uuid.uuid4(), storage_key=stored.storage_key, content_type=stored.content_type,
-            size=stored.size, sha256=stored.sha256,
-        )
-        session.add(raw_artifact)
-        await session.flush()
-
         document_id = None
         change_type = None
 
@@ -603,7 +595,10 @@ async def _process_page(
                     content=extracted.body,
                     content_hash=content_hash,
                     normalized_hash=norm_hash,
-                    raw_artifact_id=raw_artifact.id,
+                    storage_key=stored.storage_key,
+                    raw_content_type=stored.content_type,
+                    raw_size_bytes=stored.size,
+                    raw_sha256=stored.sha256,
                     extraction_metadata=extra_metadata,
                 )
                 stats.new_documents += 1
@@ -682,7 +677,10 @@ async def _process_page(
                         content=extracted.body,
                         content_hash=content_hash,
                         normalized_hash=norm_hash,
-                        raw_artifact_id=raw_artifact.id,
+                        storage_key=stored.storage_key,
+                        raw_content_type=stored.content_type,
+                        raw_size_bytes=stored.size,
+                        raw_sha256=stored.sha256,
                         extraction_metadata=extra_metadata,
                     )
                     await doc_repo.add_change(
@@ -720,6 +718,7 @@ async def _process_page(
                     if source_id is not None and existing.source_id is None:
                         existing.source_id = source_id
                     existing.crawl_job_id = job_id
+                    existing.change_status = "UNCHANGED"
                     stats.unchanged_documents += 1
                     change_type = "UNCHANGED"
                     document_id = existing.id

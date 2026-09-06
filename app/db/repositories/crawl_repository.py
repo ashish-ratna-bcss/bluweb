@@ -8,8 +8,49 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.crawl import CrawlJob, CrawlPage, CrawlRun, FetchStrategyStats, URLPatternStats
+from app.db.models.unified import WebIntelUnified
 from app.services.crawling.domain_policy_service import PolicyState, update_policy_after_outcome
 from app.services.crawling.failure_classification import FailureCategory
+
+_DOMAIN_PROFILE_DEFAULTS = {
+    "http_attempts": 0, "http_successes": 0, "http_extraction_failures": 0,
+    "browser_attempts": 0, "browser_successes": 0,
+    "avg_http_latency_ms": 0.0, "avg_browser_latency_ms": 0.0, "avg_content_bytes": 0.0,
+    "failure_counts": {}, "success_status_counts": {},
+    "js_required_count": 0, "empty_content_count": 0, "preferred_extractor": None,
+    "circuit_opened_at": None, "consecutive_failures": 0,
+    "sitemap_status": "unknown", "feed_status": "unknown", "sitemap_url_count": 0, "feed_url_count": 0,
+    "avg_extraction_quality": 0.0, "quality_observations": 0,
+    "browser_superior_count": 0, "http_superior_count": 0, "browser_equivalent_count": 0,
+    "avg_completeness": 0.0, "completeness_observations": 0, "index_children_discovered_total": 0,
+    "last_observed_at": None,
+}
+
+_URL_PATTERN_DEFAULTS = {
+    "pattern": None,
+    "by_page_type": {},
+    "fetch_attempts": 0, "successful_fetches": 0, "extraction_attempts": 0, "extraction_successes": 0,
+    "http_attempts": 0, "http_successes": 0, "browser_attempts": 0, "browser_successes": 0,
+    "preferred_extractor": None,
+    "avg_latency_ms": 0.0, "avg_content_bytes": 0.0, "failure_counts": {},
+    "avg_extraction_quality": 0.0, "quality_observations": 0, "pagination_detected_count": 0,
+    "browser_superior_count": 0, "http_superior_count": 0, "browser_equivalent_count": 0,
+    "last_observed_at": None,
+}
+
+_PAGE_TYPE_COUNTER_KEYS = (
+    "fetch_attempts", "successful_fetches", "extraction_attempts", "extraction_successes",
+    "http_attempts", "http_successes", "browser_attempts", "browser_successes",
+    "avg_latency_ms", "avg_content_bytes", "failure_counts",
+    "avg_extraction_quality", "quality_observations", "pagination_detected_count",
+    "browser_superior_count", "http_superior_count", "browser_equivalent_count",
+)
+
+_RUN_STAT_FIELDS = (
+    "pages_discovered", "pages_attempted", "pages_fetched", "pages_failed", "pages_extracted",
+    "new_documents", "updated_documents", "unchanged_documents",
+    "http_pages", "browser_pages", "bytes_downloaded",
+)
 
 
 class CrawlRepository:
@@ -26,8 +67,10 @@ class CrawlRepository:
         crawl_type: str = "instant",
         source_id: uuid.UUID | None = None,
     ) -> CrawlJob:
+        job_id = uuid.uuid4()
         job = CrawlJob(
-            id=uuid.uuid4(),
+            id=job_id,
+            crawl_job_id=job_id,
             source_id=source_id,
             seed_url=seed_url,
             crawl_type=crawl_type,
@@ -78,7 +121,10 @@ class CrawlRepository:
     async def mark_finished(self, job: CrawlJob, *, status: str, error: str | None, statistics: dict) -> None:
         job.status = status
         job.error = error
-        job.statistics = statistics
+        # Merge, don't replace: finalize_run() (called just before this by
+        # every caller) already folded duration_ms into crawl_statistics --
+        # a full replace here would silently drop it.
+        job.statistics = {**(job.statistics or {}), **statistics}
         job.completed_at = datetime.now(timezone.utc)
         await self._session.commit()
 
@@ -86,30 +132,28 @@ class CrawlRepository:
         job.status = "cancelling"
         await self._session.commit()
 
-    async def create_run(self, job_id: uuid.UUID) -> CrawlRun:
-        run = CrawlRun(id=uuid.uuid4(), crawl_job_id=job_id)
-        self._session.add(run)
-        await self._session.commit()
-        await self._session.refresh(run)
-        return run
+    async def create_run(self, job_id: uuid.UUID) -> CrawlJob:
+        """No separate `crawl_run` row exists in the unified schema (no such
+        record_kind) -- one run per job invocation folds entirely onto the
+        parent crawl_job row, so this just returns the job itself. Callers
+        use `.id` as the run id, which is simply the job id."""
+        job = await self.get_job(job_id)
+        if job is None:
+            raise ValueError(f"crawl job {job_id} not found")
+        return job
 
     async def get_run(self, run_id: uuid.UUID) -> CrawlRun | None:
-        result = await self._session.execute(select(CrawlRun).where(CrawlRun.id == run_id))
-        return result.scalar_one_or_none()
+        job = await self.get_job(run_id)
+        return CrawlRun(id=job.id, crawl_job_id=job.id) if job is not None else None
 
     async def finalize_run(self, run_id: uuid.UUID, stats: dict, duration_ms: float) -> None:
-        run = await self.get_run(run_id)
-        if run is None:
+        job = await self.get_job(run_id)
+        if job is None:
             return
-        for field_name in (
-            "pages_discovered", "pages_attempted", "pages_fetched", "pages_failed", "pages_extracted",
-            "new_documents", "updated_documents", "unchanged_documents", "duplicate_documents",
-            "http_pages", "browser_pages", "bytes_downloaded",
-        ):
+        for field_name in _RUN_STAT_FIELDS:
             if field_name in stats:
-                setattr(run, field_name, stats[field_name])
-        run.duration_ms = duration_ms
-        run.completed_at = datetime.now(timezone.utc)
+                setattr(job, field_name, stats[field_name])
+        job.statistics = {**(job.statistics or {}), "duration_ms": duration_ms}
         await self._session.commit()
 
     async def add_page(
@@ -138,7 +182,6 @@ class CrawlRepository:
             content_hash=content_hash,
             document_id=document_id,
             error=error,
-            fetched_at=datetime.now(timezone.utc) if status in ("fetched", "failed") else None,
         )
         self._session.add(page)
         await self._session.commit()
@@ -173,25 +216,27 @@ class CrawlRepository:
         SELECT still acquires the lock at the SQL level but SQLAlchemy hands
         back the *already-cached Python object* instead of refreshing its
         attributes from the row it just locked -- so every increment below
-        would silently operate on the stale pre-fetch snapshot. Confirmed
-        live: this exact scenario reproduced the lost-update bug even with
-        the lock in place; isolated tests without an earlier plain read in
-        the same session couldn't reproduce it, which is what pointed here.
+        would silently operate on the stale pre-fetch snapshot.
+
+        `record_kind`/`index_where` note: `pg_insert(FetchStrategyStats)` is
+        a Core statement against the shared `webintel_unified` table -- it
+        does NOT auto-apply the STI polymorphic identity the ORM would on a
+        `session.add()` flush, so `record_kind` must be set explicitly here.
+        `uq_webintel_domain_profile` is a *partial* unique index
+        (`WHERE record_kind='domain_profile'`), so `index_elements` alone
+        won't match it without the matching `index_where`.
         """
         insert_stmt = pg_insert(FetchStrategyStats).values(
+            id=uuid.uuid4(),
+            record_kind="domain_profile",
             domain=domain,
-            http_attempts=0, http_successes=0, http_extraction_failures=0,
-            browser_attempts=0, browser_successes=0,
-            avg_http_latency_ms=0.0, avg_browser_latency_ms=0.0, avg_content_bytes=0.0,
-            failure_counts={}, success_status_counts={},
-            js_required_count=0, empty_content_count=0,
-            crawl_delay_ms=0.0, recommended_concurrency=5, circuit_state="healthy",
-            circuit_opened_at=None, consecutive_failures=0,
-            sitemap_status="unknown", feed_status="unknown", sitemap_url_count=0, feed_url_count=0,
-            avg_extraction_quality=0.0, quality_observations=0,
-            browser_superior_count=0, http_superior_count=0, browser_equivalent_count=0,
-            avg_completeness=0.0, completeness_observations=0, index_children_discovered_total=0,
-        ).on_conflict_do_nothing(index_elements=["domain"])
+            crawl_delay_ms=0.0,
+            recommended_concurrency=5,
+            circuit_state="healthy",
+            domain_learning=dict(_DOMAIN_PROFILE_DEFAULTS),
+        ).on_conflict_do_nothing(
+            index_elements=["domain"], index_where=(WebIntelUnified.record_kind == "domain_profile")
+        )
         await self._session.execute(insert_stmt)
 
         result = await self._session.execute(
@@ -246,13 +291,13 @@ class CrawlRepository:
             stats.avg_content_bytes = _running_average(stats.avg_content_bytes, total_attempts, content_bytes)
 
         if failure_category is not None and failure_category != FailureCategory.NONE:
-            counts = dict(stats.failure_counts)
+            counts = dict(stats.failure_counts or {})
             counts[failure_category.value] = counts.get(failure_category.value, 0) + 1
             stats.failure_counts = counts
 
         if status_code is not None:
             bucket = f"{status_code // 100}xx"
-            counts = dict(stats.success_status_counts)
+            counts = dict(stats.success_status_counts or {})
             counts[bucket] = counts.get(bucket, 0) + 1
             stats.success_status_counts = counts
 
@@ -336,21 +381,19 @@ class CrawlRepository:
         result = await self._session.execute(
             select(URLPatternStats)
             .where(URLPatternStats.domain == domain)
-            .order_by(URLPatternStats.last_observed_at.desc())
             .limit(limit)
         )
-        return list(result.scalars().all())
+        rows = list(result.scalars().all())
+        rows.sort(key=lambda r: r.last_observed_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        return rows
 
     async def get_pattern_stats_any_type(self, domain: str, pattern: str) -> URLPatternStats | None:
-        """For the routing decision, which happens *before* the page is
-        fetched/classified -- we don't know this URL's page_type yet, but a
-        prior crawl of the same pattern might have. Falls back to whatever
-        row exists for (domain, pattern) regardless of page_type."""
+        """Routing lookup before page_type is known. One row per
+        (domain, pattern) with `url` holding the clean pattern string
+        (UNIQUE(domain, url) WHERE url_pattern). Aggregated counters live
+        on the row; per-page_type detail is in domain_learning.by_page_type."""
         result = await self._session.execute(
-            select(URLPatternStats)
-            .where(URLPatternStats.domain == domain, URLPatternStats.pattern == pattern)
-            .order_by(URLPatternStats.last_observed_at.desc())
-            .limit(1)
+            select(URLPatternStats).where(URLPatternStats.domain == domain, URLPatternStats.url == pattern)
         )
         return result.scalar_one_or_none()
 
@@ -371,87 +414,137 @@ class CrawlRepository:
         pagination_detected: bool = False,
         browser_comparison: str | None = None,
     ) -> None:
-        # SQL NULL isn't equal to itself for uniqueness purposes -- two
-        # concurrent "unknown page_type" inserts for the same (domain,
-        # pattern) wouldn't conflict and would silently duplicate the row.
-        # "UNKNOWN" is already a real PageType value; reuse it as the
-        # not-yet-classified sentinel so the unique constraint actually
-        # applies.
+        # One row per (domain, pattern). `url` stores the clean pattern
+        # (never a composite like pattern::PAGE_TYPE). Per-page_type
+        # counters nest under domain_learning["by_page_type"][page_type];
+        # top-level bag counters are rolled-up aggregates for routing.
         effective_page_type = page_type or "UNKNOWN"
 
         insert_stmt = pg_insert(URLPatternStats).values(
-            id=uuid.uuid4(), domain=domain, pattern=pattern, page_type=effective_page_type,
-            fetch_attempts=0, successful_fetches=0, extraction_attempts=0, extraction_successes=0,
-            http_attempts=0, http_successes=0, browser_attempts=0, browser_successes=0,
-            avg_latency_ms=0.0, avg_content_bytes=0.0, failure_counts={},
-            avg_extraction_quality=0.0, quality_observations=0, pagination_detected_count=0,
-            browser_superior_count=0, http_superior_count=0, browser_equivalent_count=0,
-        ).on_conflict_do_nothing(index_elements=["domain", "pattern", "page_type"])
+            id=uuid.uuid4(), record_kind="url_pattern", domain=domain, url=pattern,
+            page_type=effective_page_type,
+            domain_learning={**_URL_PATTERN_DEFAULTS, "pattern": pattern, "by_page_type": {}},
+        ).on_conflict_do_nothing(
+            index_elements=["domain", "url"], index_where=(WebIntelUnified.record_kind == "url_pattern")
+        )
         await self._session.execute(insert_stmt)
 
-        # populate_existing=True: get_pattern_stats_any_type() reads this same
-        # row earlier in the request for pre-fetch routing, seeding the
-        # session identity map. Without this the FOR UPDATE lock is taken at
-        # the SQL level but the ORM hands back the stale cached object, so
-        # every += below silently operates on pre-fetch values (same class
-        # of bug fixed in _get_strategy_stats_locked above).
         result = await self._session.execute(
             select(URLPatternStats)
-            .where(
-                URLPatternStats.domain == domain,
-                URLPatternStats.pattern == pattern,
-                URLPatternStats.page_type == effective_page_type,
-            )
+            .where(URLPatternStats.domain == domain, URLPatternStats.url == pattern)
             .with_for_update()
             .execution_options(populate_existing=True)
         )
         stats = result.scalar_one()
 
-        stats.fetch_attempts += 1
+        learning = dict(stats.domain_learning or {})
+        by_page_type = dict(learning.get("by_page_type") or {})
+        bucket = dict(by_page_type.get(effective_page_type) or {
+            k: ({} if k == "failure_counts" else (0.0 if k.startswith("avg_") else 0))
+            for k in _PAGE_TYPE_COUNTER_KEYS
+        })
+
+        def _bump(key: str, amount: int = 1) -> None:
+            bucket[key] = int(bucket.get(key, 0)) + amount
+
+        _bump("fetch_attempts")
         if success:
-            stats.successful_fetches += 1
-        if success:
-            stats.extraction_attempts += 1
+            _bump("successful_fetches")
+            _bump("extraction_attempts")
             if extraction_ok:
-                stats.extraction_successes += 1
+                _bump("extraction_successes")
 
         if strategy == "http":
-            stats.http_attempts += 1
+            _bump("http_attempts")
             if success:
-                stats.http_successes += 1
+                _bump("http_successes")
         else:
-            stats.browser_attempts += 1
+            _bump("browser_attempts")
             if success:
-                stats.browser_successes += 1
+                _bump("browser_successes")
 
-        stats.avg_latency_ms = _running_average(stats.avg_latency_ms, stats.fetch_attempts, latency_ms)
+        fetch_n = int(bucket["fetch_attempts"])
+        bucket["avg_latency_ms"] = _running_average(float(bucket.get("avg_latency_ms") or 0.0), fetch_n, latency_ms)
         if content_bytes is not None:
-            stats.avg_content_bytes = _running_average(stats.avg_content_bytes, stats.fetch_attempts, content_bytes)
+            bucket["avg_content_bytes"] = _running_average(
+                float(bucket.get("avg_content_bytes") or 0.0), fetch_n, content_bytes
+            )
 
         if failure_category is not None and failure_category != FailureCategory.NONE:
-            counts = dict(stats.failure_counts)
+            counts = dict(bucket.get("failure_counts") or {})
             counts[failure_category.value] = counts.get(failure_category.value, 0) + 1
-            stats.failure_counts = counts
+            bucket["failure_counts"] = counts
 
+        if extraction_quality is not None:
+            qn = int(bucket.get("quality_observations") or 0) + 1
+            bucket["quality_observations"] = qn
+            bucket["avg_extraction_quality"] = _running_average(
+                float(bucket.get("avg_extraction_quality") or 0.0), qn, extraction_quality
+            )
+        if pagination_detected:
+            _bump("pagination_detected_count")
+        if browser_comparison == "browser_superior":
+            _bump("browser_superior_count")
+        elif browser_comparison == "http_superior":
+            _bump("http_superior_count")
+        elif browser_comparison == "equivalent":
+            _bump("browser_equivalent_count")
+
+        by_page_type[effective_page_type] = bucket
+        learning["by_page_type"] = by_page_type
+        learning["pattern"] = pattern
+        stats.domain_learning = learning
+
+        # Roll up aggregates onto top-level bag properties (routing + profile API).
+        _rollup_pattern_aggregates(stats, by_page_type)
+
+        stats.page_type = effective_page_type
         if extractor_used and extraction_ok:
             stats.preferred_extractor = extractor_used
         stats.preferred_strategy = strategy
-        if extraction_quality is not None:
-            stats.quality_observations += 1
-            stats.avg_extraction_quality = _running_average(
-                stats.avg_extraction_quality, stats.quality_observations, extraction_quality
-            )
-        if pagination_detected:
-            stats.pagination_detected_count += 1
-        if browser_comparison == "browser_superior":
-            stats.browser_superior_count += 1
-        elif browser_comparison == "http_superior":
-            stats.http_superior_count += 1
-        elif browser_comparison == "equivalent":
-            stats.browser_equivalent_count += 1
         stats.last_observed_at = datetime.now(timezone.utc)
 
         await self._session.commit()
+
+
+def _rollup_pattern_aggregates(stats: URLPatternStats, by_page_type: dict) -> None:
+    """Recompute top-level URLPatternStats bag counters from per-page-type buckets."""
+    totals = {k: ({} if k == "failure_counts" else 0) for k in _PAGE_TYPE_COUNTER_KEYS if k != "avg_latency_ms" and k != "avg_content_bytes" and k != "avg_extraction_quality"}
+    latency_weight = 0
+    latency_sum = 0.0
+    bytes_weight = 0
+    bytes_sum = 0.0
+    quality_weight = 0
+    quality_sum = 0.0
+    failure_counts: dict = {}
+
+    for bucket in by_page_type.values():
+        for key in (
+            "fetch_attempts", "successful_fetches", "extraction_attempts", "extraction_successes",
+            "http_attempts", "http_successes", "browser_attempts", "browser_successes",
+            "pagination_detected_count", "browser_superior_count", "http_superior_count",
+            "browser_equivalent_count", "quality_observations",
+        ):
+            totals[key] = int(totals.get(key, 0)) + int(bucket.get(key, 0))
+        fa = int(bucket.get("fetch_attempts") or 0)
+        if fa:
+            latency_weight += fa
+            latency_sum += float(bucket.get("avg_latency_ms") or 0.0) * fa
+            bytes_weight += fa
+            bytes_sum += float(bucket.get("avg_content_bytes") or 0.0) * fa
+        qn = int(bucket.get("quality_observations") or 0)
+        if qn:
+            quality_weight += qn
+            quality_sum += float(bucket.get("avg_extraction_quality") or 0.0) * qn
+        for k, v in (bucket.get("failure_counts") or {}).items():
+            failure_counts[k] = failure_counts.get(k, 0) + int(v)
+
+    for key, value in totals.items():
+        setattr(stats, key, value)
+    stats.failure_counts = failure_counts
+    stats.avg_latency_ms = (latency_sum / latency_weight) if latency_weight else 0.0
+    stats.avg_content_bytes = (bytes_sum / bytes_weight) if bytes_weight else 0.0
+    stats.avg_extraction_quality = (quality_sum / quality_weight) if quality_weight else 0.0
 
 
 def _running_average(current_avg: float, count: int, new_value: float) -> float:

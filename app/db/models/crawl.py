@@ -1,204 +1,291 @@
+"""`crawl_job` / `crawl_page` / `domain_profile` / `url_pattern` kinds.
+
+See app/db/models/unified.py for the shared column set, the STI rationale,
+and the JSONB mutation rule. Renames/column-repurposing decisions specific
+to this file:
+
+- `CrawlJob`: DDL has no dedicated `started_at`/`completed_at` columns --
+  reused the generic, otherwise-idle-for-this-kind `first_seen_at`/
+  `last_seen_at`. `.status` is a `hybrid_property` (not a plain property)
+  because `CrawlRepository.get_active_job_for_source` filters
+  `.where(CrawlJob.status.in_(...))` at the class level.
+- `CrawlRun` no longer has its own row at all (no `crawl_run` record_kind
+  in the DDL) -- it's folded entirely into its parent `crawl_job` row by
+  `CrawlRepository` (one run per job invocation, verified 1:1 in
+  crawl_engine.py). Kept here as an unused dataclass purely so
+  `app/db/models/__init__.py`'s existing re-export list doesn't change.
+- `CrawlPage`: no dedicated `discovered_at`/`fetched_at` columns --
+  `discovered_at` aliases the generic `created_at` (`hybrid_property`,
+  since `CrawlRepository.list_pages` orders by
+  `CrawlPage.discovered_at` at the class level); `fetched_at` is a
+  read-only computed property (old code always set both to the same
+  instant on a fetched/failed page, never independently).
+- `FetchStrategyStats`/`URLPatternStats`: only `crawl_delay_ms`,
+  `recommended_concurrency`, `circuit_state`, `preferred_strategy`,
+  `domain`, `page_type` have real dense columns in the DDL. Every other
+  counter (~30 for FetchStrategyStats, ~15 for URLPatternStats) is a
+  property pair backed by one shared `domain_learning` JSONB dict --
+  built with the `_bag_property`/`_bag_datetime_property` factories below.
+  Datetime-valued counters (`circuit_opened_at`, `last_observed_at`) are
+  stored as ISO strings inside the JSONB (Postgres JSONB can't hold a raw
+  Python `datetime`) and parsed back on read.
+- `URLPatternStats` uniqueness: DDL `UNIQUE(domain, url)` WHERE
+  `url_pattern`. The clean URL-pattern string is stored in `url` (never a
+  composite like `pattern::PAGE_TYPE`). Per-page_type counters live under
+  `domain_learning["by_page_type"][page_type]`; top-level bag counters are
+  rolled-up aggregates used for routing. `.pattern` mirrors `url` for the
+  domains API display path.
+"""
+
 import uuid
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.hybrid import hybrid_property
 
-from app.db.base import Base
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
+from app.db.models.unified import WebIntelUnified
 
 
-class CrawlJob(Base):
-    __tablename__ = "crawl_jobs"
+def _bag_property(key: str, default=0):
+    """Instance-level get/set of one key inside `domain_learning`. Never
+    used in a class-level query expression anywhere in this codebase, so a
+    plain `property` (not `hybrid_property`) is correct here."""
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sources.id", ondelete="SET NULL"), nullable=True, index=True
-    )
+    def getter(self):
+        return self._learning().get(key, default)
 
-    crawl_type: Mapped[str] = mapped_column(String(16), nullable=False, default="instant")  # instant | monitoring
-    seed_url: Mapped[str] = mapped_column(Text, nullable=False)
+    def setter(self, value) -> None:
+        self._set_learning(key, value)
 
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)
-    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
-    max_pages: Mapped[int] = mapped_column(Integer, nullable=False)
-    max_depth: Mapped[int] = mapped_column(Integer, nullable=False)
-    same_domain_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-
-    statistics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    error: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    return property(getter, setter)
 
 
-class CrawlRun(Base):
-    __tablename__ = "crawl_runs"
+def _bag_datetime_property(key: str):
+    def getter(self) -> datetime | None:
+        raw = self._learning().get(key)
+        return datetime.fromisoformat(raw) if raw else None
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    crawl_job_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("crawl_jobs.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    worker: Mapped[str] = mapped_column(String(64), nullable=False, default="inline")
+    def setter(self, value: datetime | None) -> None:
+        self._set_learning(key, value.isoformat() if value is not None else None)
 
-    pages_discovered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    pages_attempted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    pages_fetched: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    pages_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    pages_extracted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
-    new_documents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    updated_documents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    unchanged_documents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    duplicate_documents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
-    http_pages: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_pages: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    bytes_downloaded: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-
-    duration_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    return property(getter, setter)
 
 
-class CrawlPage(Base):
-    __tablename__ = "crawl_pages"
+class _DomainLearningMixin:
+    """Shared read-modify-write helpers for the `domain_learning` JSONB bag.
+    Reassigns a new dict on every write per the JSONB mutation rule -- never
+    mutates the existing dict in place."""
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    crawl_job_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("crawl_jobs.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    def _learning(self) -> dict:
+        return self.domain_learning or {}
 
-    url: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_url: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")  # pending|fetched|failed|skipped
-    fetch_strategy: Mapped[str | None] = mapped_column(String(16), nullable=True)  # http|browser
-    http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    error: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    def _set_learning(self, key: str, value) -> None:
+        self.domain_learning = {**self._learning(), key: value}
 
 
-class FetchStrategyStats(Base):
-    """AKA the domain profile (spec Phase I): what we've learned about a
-    domain's crawlability. Deliberately one table, not a parallel
-    `DomainProfile` -- this table already *is* per-domain crawl history;
-    adding failure-category and content-size tracking here is extending an
-    existing seam, not duplicating one. `failure_counts` is a JSONB bag
-    keyed by `FailureCategory` value rather than one column per category,
-    so a new failure category never needs a migration.
-    """
+class CrawlJob(WebIntelUnified):
+    __mapper_args__ = {"polymorphic_identity": "crawl_job"}
 
-    __tablename__ = "fetch_strategy_stats"
+    @property
+    def seed_url(self) -> str | None:
+        return self.url
 
-    domain: Mapped[str] = mapped_column(String(255), primary_key=True)
+    @seed_url.setter
+    def seed_url(self, value: str | None) -> None:
+        self.url = value
 
-    http_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    http_successes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    http_extraction_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_successes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    @property
+    def priority(self) -> int | None:
+        return self.crawl_priority
 
-    avg_http_latency_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    avg_browser_latency_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    avg_content_bytes: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    @priority.setter
+    def priority(self, value: int | None) -> None:
+        self.crawl_priority = value
 
-    failure_counts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    success_status_counts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)  # "2xx"/"3xx" -> count
+    @property
+    def statistics(self) -> dict | None:
+        return self.crawl_statistics
 
-    js_required_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    empty_content_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    preferred_extractor: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    @statistics.setter
+    def statistics(self, value: dict | None) -> None:
+        self.crawl_statistics = value or {}
 
-    # Politeness / circuit breaker state (spec Phase 6 sections 24-27) --
-    # derived from the counters above by DomainPolicyService, persisted here
-    # so it survives process restarts rather than living only in memory.
-    crawl_delay_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    recommended_concurrency: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    circuit_state: Mapped[str] = mapped_column(String(16), nullable=False, default="healthy")  # healthy|degraded|open
-    circuit_opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    @property
+    def error(self) -> str | None:
+        return self.crawl_error
 
-    last_observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    @error.setter
+    def error(self, value: str | None) -> None:
+        self.crawl_error = value
 
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
+    @property
+    def started_at(self) -> datetime | None:
+        return self.first_seen_at
 
-    # Phase 9 capability learning (spec sections 2/7): discovery status is a
-    # DiscoveryStatus value (available/not_present/failed/blocked/invalid/
-    # unknown), not a bare bool -- a block and a genuine absence mean
-    # opposite things for routing and shouldn't collapse together.
-    # avg_extraction_quality/quality_observations extend the existing
-    # extraction_ok bool with score_extraction()'s continuous 0-1 score, so
-    # "extraction succeeded but was mediocre" is learnable, not just
-    # succeeded/failed.
-    sitemap_status: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
-    feed_status: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
-    sitemap_url_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    feed_url_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    avg_extraction_quality: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    quality_observations: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # Final completion: browser-vs-HTTP quality compare outcomes + completeness.
-    browser_superior_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    http_superior_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_equivalent_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    avg_completeness: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    completeness_observations: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    index_children_discovered_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    @started_at.setter
+    def started_at(self, value: datetime | None) -> None:
+        self.first_seen_at = value
+
+    @property
+    def completed_at(self) -> datetime | None:
+        return self.last_seen_at
+
+    @completed_at.setter
+    def completed_at(self, value: datetime | None) -> None:
+        self.last_seen_at = value
+
+    @hybrid_property
+    def status(self) -> str | None:
+        return self.crawl_status
+
+    @status.setter
+    def status(self, value: str | None) -> None:
+        self.crawl_status = value
+
+    @status.expression
+    def status(cls):
+        return cls.crawl_status
 
 
-class URLPatternStats(Base):
-    """Per (domain, pattern, page_type) crawl history -- spec Phase 6
-    section 7. `FetchStrategyStats` alone conflates `/news/*` with
-    `/forum/*`; this is the finer-grained sibling it was missing, not a
-    replacement for it. Same JSONB-bag-for-failures shape for consistency.
-    """
+@dataclass
+class CrawlRun:
+    """No longer a real row (no `crawl_run` record_kind in the DDL) -- its
+    counters live on the parent `crawl_job` row instead. Kept only so
+    `app/db/models/__init__.py` doesn't need to drop the name; never
+    instantiated."""
 
-    __tablename__ = "url_pattern_stats"
-    __table_args__ = (
-        UniqueConstraint("domain", "pattern", "page_type", name="uq_url_pattern_stats_domain_pattern_type"),
-    )
+    id: uuid.UUID
+    crawl_job_id: uuid.UUID
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    pattern: Mapped[str] = mapped_column(Text, nullable=False)
-    page_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
-    fetch_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    successful_fetches: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    extraction_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    extraction_successes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+class CrawlPage(WebIntelUnified):
+    __mapper_args__ = {"polymorphic_identity": "crawl_page"}
 
-    http_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    http_successes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_successes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    @property
+    def depth(self) -> int | None:
+        return self.crawl_depth
 
-    preferred_strategy: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    preferred_extractor: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    @depth.setter
+    def depth(self, value: int | None) -> None:
+        self.crawl_depth = value
 
-    avg_latency_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    avg_content_bytes: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    failure_counts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    @property
+    def status(self) -> str | None:
+        return self.crawl_page_status
 
-    # Phase 9 capability learning (spec section 3): pattern-level is the more
-    # specific sibling of the domain-level fields added above.
-    avg_extraction_quality: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    quality_observations: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    pagination_detected_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_superior_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    http_superior_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    browser_equivalent_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    @status.setter
+    def status(self, value: str | None) -> None:
+        self.crawl_page_status = value
 
-    last_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+    @property
+    def error(self) -> str | None:
+        return self.fetch_error
+
+    @error.setter
+    def error(self, value: str | None) -> None:
+        self.fetch_error = value
+
+    @hybrid_property
+    def discovered_at(self) -> datetime | None:
+        return self.created_at
+
+    @discovered_at.expression
+    def discovered_at(cls):
+        return cls.created_at
+
+    @property
+    def fetched_at(self) -> datetime | None:
+        # Old code always set discovered_at == fetched_at on a fetched/failed
+        # page in the same INSERT -- nothing to store separately.
+        return self.created_at if self.crawl_page_status in ("fetched", "failed") else None
+
+
+class FetchStrategyStats(_DomainLearningMixin, WebIntelUnified):
+    """AKA the domain profile. `domain`, `crawl_delay_ms`,
+    `recommended_concurrency`, `circuit_state` are real dense columns;
+    everything else lives in `domain_learning` (see module docstring)."""
+
+    __mapper_args__ = {"polymorphic_identity": "domain_profile"}
+
+    http_attempts = _bag_property("http_attempts", 0)
+    http_successes = _bag_property("http_successes", 0)
+    http_extraction_failures = _bag_property("http_extraction_failures", 0)
+    browser_attempts = _bag_property("browser_attempts", 0)
+    browser_successes = _bag_property("browser_successes", 0)
+
+    avg_http_latency_ms = _bag_property("avg_http_latency_ms", 0.0)
+    avg_browser_latency_ms = _bag_property("avg_browser_latency_ms", 0.0)
+    avg_content_bytes = _bag_property("avg_content_bytes", 0.0)
+
+    failure_counts = _bag_property("failure_counts", None)
+    success_status_counts = _bag_property("success_status_counts", None)
+
+    js_required_count = _bag_property("js_required_count", 0)
+    empty_content_count = _bag_property("empty_content_count", 0)
+    preferred_extractor = _bag_property("preferred_extractor", None)
+
+    circuit_opened_at = _bag_datetime_property("circuit_opened_at")
+    consecutive_failures = _bag_property("consecutive_failures", 0)
+    last_observed_at = _bag_datetime_property("last_observed_at")
+
+    sitemap_status = _bag_property("sitemap_status", "unknown")
+    feed_status = _bag_property("feed_status", "unknown")
+    sitemap_url_count = _bag_property("sitemap_url_count", 0)
+    feed_url_count = _bag_property("feed_url_count", 0)
+    avg_extraction_quality = _bag_property("avg_extraction_quality", 0.0)
+    quality_observations = _bag_property("quality_observations", 0)
+
+    browser_superior_count = _bag_property("browser_superior_count", 0)
+    http_superior_count = _bag_property("http_superior_count", 0)
+    browser_equivalent_count = _bag_property("browser_equivalent_count", 0)
+    avg_completeness = _bag_property("avg_completeness", 0.0)
+    completeness_observations = _bag_property("completeness_observations", 0)
+    index_children_discovered_total = _bag_property("index_children_discovered_total", 0)
+
+
+class URLPatternStats(_DomainLearningMixin, WebIntelUnified):
+    """Per (domain, pattern) crawl history. `url` holds the clean pattern
+    string (UNIQUE with domain). `page_type` is the last-observed type.
+    Aggregated counters are bag properties; per-type detail is in
+    `domain_learning["by_page_type"]`."""
+
+    __mapper_args__ = {"polymorphic_identity": "url_pattern"}
+
+    @property
+    def pattern(self) -> str | None:
+        # Prefer the dense `url` column (authoritative unique key); fall back
+        # to the JSONB mirror for any legacy rows.
+        return self.url or self._learning().get("pattern")
+
+    @pattern.setter
+    def pattern(self, value: str | None) -> None:
+        self.url = value
+        self._set_learning("pattern", value)
+
+    def page_type_buckets(self) -> dict:
+        return dict((self.domain_learning or {}).get("by_page_type") or {})
+
+    fetch_attempts = _bag_property("fetch_attempts", 0)
+    successful_fetches = _bag_property("successful_fetches", 0)
+    extraction_attempts = _bag_property("extraction_attempts", 0)
+    extraction_successes = _bag_property("extraction_successes", 0)
+
+    http_attempts = _bag_property("http_attempts", 0)
+    http_successes = _bag_property("http_successes", 0)
+    browser_attempts = _bag_property("browser_attempts", 0)
+    browser_successes = _bag_property("browser_successes", 0)
+
+    preferred_extractor = _bag_property("preferred_extractor", None)
+
+    avg_latency_ms = _bag_property("avg_latency_ms", 0.0)
+    avg_content_bytes = _bag_property("avg_content_bytes", 0.0)
+    failure_counts = _bag_property("failure_counts", None)
+
+    avg_extraction_quality = _bag_property("avg_extraction_quality", 0.0)
+    quality_observations = _bag_property("quality_observations", 0)
+    pagination_detected_count = _bag_property("pagination_detected_count", 0)
+    browser_superior_count = _bag_property("browser_superior_count", 0)
+    http_superior_count = _bag_property("http_superior_count", 0)
+    browser_equivalent_count = _bag_property("browser_equivalent_count", 0)
+
+    last_observed_at = _bag_datetime_property("last_observed_at")

@@ -1,16 +1,20 @@
+"""`source` kind + its embedded-child shapes.
+
+See app/db/models/unified.py for the shared column set, the STI rationale,
+and the JSONB mutation rule. `SourceUrl`/`MonitoringEvent` are no longer
+their own table rows -- the unified schema embeds them as JSONB list
+entries (`sources.source_urls`, `sources.monitoring_events`) -- so they're
+plain dataclasses here, constructed by `SourceRepository` from those
+entries.
+"""
+
 import uuid
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.hybrid import hybrid_property
 
-from app.db.base import Base
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
+from app.db.models.unified import WebIntelUnified
 
 DEFAULT_CRAWL_POLICY = {
     "max_depth": 3,
@@ -22,67 +26,60 @@ DEFAULT_CRAWL_POLICY = {
 }
 
 
-class Source(Base):
-    __tablename__ = "sources"
+class Source(WebIntelUnified):
+    __mapper_args__ = {"polymorphic_identity": "source"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    @property
+    def name(self) -> str | None:
+        return self.source_name
 
-    base_url: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_url: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
-    domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    @name.setter
+    def name(self, value: str | None) -> None:
+        self.source_name = value
 
-    source_type: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="paused", index=True)  # paused|active
+    @property
+    def base_url(self) -> str | None:
+        return self.url
 
-    preflight_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("preflight_reports.id", ondelete="SET NULL"), nullable=True
-    )
-    crawl_policy: Mapped[dict] = mapped_column(JSONB, nullable=False, default=lambda: dict(DEFAULT_CRAWL_POLICY))
+    @base_url.setter
+    def base_url(self, value: str | None) -> None:
+        self.url = value
 
-    min_interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=900)
-    max_interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=86400)
-    current_interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=900)
-    consecutive_unchanged_crawls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    @hybrid_property
+    def status(self) -> str | None:
+        return self.source_status
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
-    last_crawl_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    next_crawl_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    @status.setter
+    def status(self, value: str | None) -> None:
+        self.source_status = value
 
-
-class SourceUrl(Base):
-    __tablename__ = "source_urls"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    url: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_url: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")  # active|removed
-    consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_failure_category: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-
-    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
-    last_crawled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    @status.expression
+    def status(cls):
+        return cls.source_status
 
 
-class MonitoringEvent(Base):
-    __tablename__ = "monitoring_events"
+@dataclass
+class SourceUrl:
+    id: uuid.UUID
+    source_id: uuid.UUID
+    url: str
+    normalized_url: str
+    status: str = "active"  # active|removed
+    consecutive_failures: int = 0
+    last_failure_category: str | None = None
+    document_id: uuid.UUID | None = None
+    first_seen: datetime | None = None
+    last_seen: datetime | None = None
+    last_crawled_at: datetime | None = None
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
-    event_type: Mapped[str] = mapped_column(String(16), nullable=False)  # NEW|UPDATED|UNCHANGED|REMOVED|RESTORED|CRAWL_FAILED
-    previous_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    new_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    change_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-
-    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, index=True)
+@dataclass
+class MonitoringEvent:
+    id: uuid.UUID
+    source_id: uuid.UUID
+    event_type: str  # NEW|UPDATED|UNCHANGED|REMOVED|RESTORED|CRAWL_FAILED
+    document_id: uuid.UUID | None = None
+    previous_version: int | None = None
+    new_version: int | None = None
+    change_summary: dict | None = None
+    detected_at: datetime | None = None

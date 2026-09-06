@@ -127,14 +127,28 @@ async def get_domain_capabilities(
     pagination_observations = 0
     for p in patterns:
         pagination_observations += p.pagination_detected_count
-        if not p.page_type:
-            continue
-        agg = by_page_type.setdefault(p.page_type, {"observations": 0, "successes": 0, "quality_sum": 0.0, "quality_n": 0})
-        agg["observations"] += p.extraction_attempts
-        agg["successes"] += p.extraction_successes
-        if p.quality_observations:
-            agg["quality_sum"] += p.avg_extraction_quality * p.quality_observations
-            agg["quality_n"] += p.quality_observations
+        buckets = p.page_type_buckets()
+        if buckets:
+            for page_type, bucket in buckets.items():
+                agg = by_page_type.setdefault(
+                    page_type, {"observations": 0, "successes": 0, "quality_sum": 0.0, "quality_n": 0}
+                )
+                agg["observations"] += int(bucket.get("extraction_attempts") or 0)
+                agg["successes"] += int(bucket.get("extraction_successes") or 0)
+                qn = int(bucket.get("quality_observations") or 0)
+                if qn:
+                    agg["quality_sum"] += float(bucket.get("avg_extraction_quality") or 0.0) * qn
+                    agg["quality_n"] += qn
+        elif p.page_type:
+            # Legacy / single-type rows without by_page_type nesting.
+            agg = by_page_type.setdefault(
+                p.page_type, {"observations": 0, "successes": 0, "quality_sum": 0.0, "quality_n": 0}
+            )
+            agg["observations"] += p.extraction_attempts
+            agg["successes"] += p.extraction_successes
+            if p.quality_observations:
+                agg["quality_sum"] += p.avg_extraction_quality * p.quality_observations
+                agg["quality_n"] += p.quality_observations
 
     total_observations = stats.http_attempts + stats.browser_attempts
     if health.insufficient_data:

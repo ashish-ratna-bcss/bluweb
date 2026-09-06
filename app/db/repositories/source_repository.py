@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.source import DEFAULT_CRAWL_POLICY, MonitoringEvent, Source, SourceUrl
@@ -38,8 +38,10 @@ class SourceRepository:
         min_interval_seconds: int,
         max_interval_seconds: int,
     ) -> Source:
+        source_id = uuid.uuid4()
         source = Source(
-            id=uuid.uuid4(),
+            id=source_id,
+            source_id=source_id,
             name=name,
             base_url=base_url,
             normalized_url=normalized_url,
@@ -122,12 +124,28 @@ class SourceRepository:
         await self._session.commit()
 
     # -- source_urls (per-URL state for REMOVED detection) --
+    #
+    # No standalone row/table (or unique constraint) exists for these
+    # anymore -- `source_urls` is a JSONB list on the parent `source` row.
+    # Two different URLs of the same source now contend for that one row
+    # (they didn't when each had its own row), so the upsert methods below
+    # lock the source row first -- a lock the old per-row design never
+    # needed.
 
     async def get_source_url(self, source_id: uuid.UUID, normalized_url: str) -> SourceUrl | None:
+        source = await self.get(source_id)
+        if source is None:
+            return None
+        for entry in source.source_urls or []:
+            if entry.get("normalized_url") == normalized_url:
+                return _source_url_from_entry(entry)
+        return None
+
+    async def _get_source_locked(self, source_id: uuid.UUID) -> Source:
         result = await self._session.execute(
-            select(SourceUrl).where(SourceUrl.source_id == source_id, SourceUrl.normalized_url == normalized_url)
+            select(Source).where(Source.id == source_id).with_for_update().execution_options(populate_existing=True)
         )
-        return result.scalar_one_or_none()
+        return result.scalar_one()
 
     async def upsert_source_url_success(
         self, source_id: uuid.UUID, url: str, normalized_url: str, document_id: uuid.UUID | None
@@ -136,25 +154,34 @@ class SourceRepository:
         removed -> active transition (spec Phase 7 section 24) -- a
         brand-new URL's first successful crawl is NOT a restoration, and
         neither is a normal already-active crawl."""
-        existing = await self.get_source_url(source_id, normalized_url)
+        source = await self._get_source_locked(source_id)
         now = datetime.now(timezone.utc)
-        if existing is None:
-            existing = SourceUrl(
-                id=uuid.uuid4(), source_id=source_id, url=url, normalized_url=normalized_url,
-                status="active", consecutive_failures=0, document_id=document_id,
-                last_crawled_at=now,
-            )
-            self._session.add(existing)
-            await self._session.commit()
-            return existing, False
+        entries = source.source_urls or []
+        idx = next((i for i, e in enumerate(entries) if e.get("normalized_url") == normalized_url), None)
 
-        was_removed = existing.status == "removed"
-        existing.status = "active"
-        existing.consecutive_failures = 0
-        existing.document_id = document_id or existing.document_id
-        existing.last_crawled_at = now
+        if idx is None:
+            entry = {
+                "id": str(uuid.uuid4()), "source_id": str(source_id), "url": url, "normalized_url": normalized_url,
+                "status": "active", "consecutive_failures": 0, "last_failure_category": None,
+                "document_id": str(document_id) if document_id else None,
+                "first_seen": now.isoformat(), "last_seen": now.isoformat(), "last_crawled_at": now.isoformat(),
+            }
+            source.source_urls = [*entries, entry]
+            await self._session.commit()
+            return _source_url_from_entry(entry), False
+
+        entry = dict(entries[idx])
+        was_removed = entry.get("status") == "removed"
+        entry["status"] = "active"
+        entry["consecutive_failures"] = 0
+        entry["document_id"] = str(document_id) if document_id else entry.get("document_id")
+        entry["last_seen"] = now.isoformat()
+        entry["last_crawled_at"] = now.isoformat()
+        new_entries = list(entries)
+        new_entries[idx] = entry
+        source.source_urls = new_entries
         await self._session.commit()
-        return existing, was_removed
+        return _source_url_from_entry(entry), was_removed
 
     async def record_source_url_failure(
         self,
@@ -172,30 +199,37 @@ class SourceRepository:
         consecutive-failure counter or triggers REMOVED: being blocked says
         nothing about whether the content is still there (spec Phase L/M).
         """
-        existing = await self.get_source_url(source_id, normalized_url)
+        source = await self._get_source_locked(source_id)
         now = datetime.now(timezone.utc)
         eligible = is_removal_eligible(category)
+        entries = source.source_urls or []
+        idx = next((i for i, e in enumerate(entries) if e.get("normalized_url") == normalized_url), None)
 
-        if existing is None:
-            existing = SourceUrl(
-                id=uuid.uuid4(), source_id=source_id, url=url, normalized_url=normalized_url,
-                status="active", consecutive_failures=1 if eligible else 0,
-                last_failure_category=category.value, last_crawled_at=now,
-            )
-            self._session.add(existing)
+        if idx is None:
+            entry = {
+                "id": str(uuid.uuid4()), "source_id": str(source_id), "url": url, "normalized_url": normalized_url,
+                "status": "active", "consecutive_failures": 1 if eligible else 0,
+                "last_failure_category": category.value, "document_id": None,
+                "first_seen": now.isoformat(), "last_seen": now.isoformat(), "last_crawled_at": now.isoformat(),
+            }
+            source.source_urls = [*entries, entry]
             await self._session.commit()
-            return existing, False
+            return _source_url_from_entry(entry), False
 
-        existing.last_failure_category = category.value
-        existing.last_crawled_at = now
+        entry = dict(entries[idx])
+        entry["last_failure_category"] = category.value
+        entry["last_crawled_at"] = now.isoformat()
         just_removed = False
         if eligible:
-            existing.consecutive_failures += 1
-            if existing.consecutive_failures >= removal_threshold and existing.status != "removed":
-                existing.status = "removed"
+            entry["consecutive_failures"] = entry.get("consecutive_failures", 0) + 1
+            if entry["consecutive_failures"] >= removal_threshold and entry.get("status") != "removed":
+                entry["status"] = "removed"
                 just_removed = True
+        new_entries = list(entries)
+        new_entries[idx] = entry
+        source.source_urls = new_entries
         await self._session.commit()
-        return existing, just_removed
+        return _source_url_from_entry(entry), just_removed
 
     # -- monitoring events --
 
@@ -209,25 +243,47 @@ class SourceRepository:
         new_version: int | None = None,
         change_summary: dict | None = None,
     ) -> MonitoringEvent:
-        event = MonitoringEvent(
-            id=uuid.uuid4(), source_id=source_id, document_id=document_id, event_type=event_type,
-            previous_version=previous_version, new_version=new_version, change_summary=change_summary,
-        )
-        self._session.add(event)
+        source = await self._get_source_locked(source_id)
+        entry = {
+            "id": str(uuid.uuid4()), "source_id": str(source_id),
+            "document_id": str(document_id) if document_id else None, "event_type": event_type,
+            "previous_version": previous_version, "new_version": new_version, "change_summary": change_summary,
+            "detected_at": datetime.now(timezone.utc).isoformat(),
+        }
+        source.monitoring_events = [*(source.monitoring_events or []), entry]
         await self._session.commit()
-        return event
+        return _monitoring_event_from_entry(entry)
 
     async def list_events(self, source_id: uuid.UUID, *, limit: int = 100) -> list[MonitoringEvent]:
-        result = await self._session.execute(
-            select(MonitoringEvent)
-            .where(MonitoringEvent.source_id == source_id)
-            .order_by(MonitoringEvent.detected_at.desc())
-            .limit(limit)
-        )
-        return list(result.scalars().all())
+        source = await self.get(source_id)
+        if source is None:
+            return []
+        entries = sorted(source.monitoring_events or [], key=lambda e: e.get("detected_at") or "", reverse=True)
+        return [_monitoring_event_from_entry(e) for e in entries[:limit]]
 
     async def count_events(self, source_id: uuid.UUID) -> int:
-        result = await self._session.execute(
-            select(func.count()).select_from(MonitoringEvent).where(MonitoringEvent.source_id == source_id)
-        )
-        return result.scalar_one()
+        source = await self.get(source_id)
+        return len(source.monitoring_events or []) if source is not None else 0
+
+
+def _source_url_from_entry(entry: dict) -> SourceUrl:
+    return SourceUrl(
+        id=uuid.UUID(entry["id"]), source_id=uuid.UUID(entry["source_id"]), url=entry["url"],
+        normalized_url=entry["normalized_url"], status=entry.get("status", "active"),
+        consecutive_failures=entry.get("consecutive_failures", 0),
+        last_failure_category=entry.get("last_failure_category"),
+        document_id=uuid.UUID(entry["document_id"]) if entry.get("document_id") else None,
+        first_seen=datetime.fromisoformat(entry["first_seen"]) if entry.get("first_seen") else None,
+        last_seen=datetime.fromisoformat(entry["last_seen"]) if entry.get("last_seen") else None,
+        last_crawled_at=datetime.fromisoformat(entry["last_crawled_at"]) if entry.get("last_crawled_at") else None,
+    )
+
+
+def _monitoring_event_from_entry(entry: dict) -> MonitoringEvent:
+    return MonitoringEvent(
+        id=uuid.UUID(entry["id"]), source_id=uuid.UUID(entry["source_id"]), event_type=entry["event_type"],
+        document_id=uuid.UUID(entry["document_id"]) if entry.get("document_id") else None,
+        previous_version=entry.get("previous_version"), new_version=entry.get("new_version"),
+        change_summary=entry.get("change_summary"),
+        detected_at=datetime.fromisoformat(entry["detected_at"]) if entry.get("detected_at") else None,
+    )

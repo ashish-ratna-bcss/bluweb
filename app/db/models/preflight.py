@@ -1,41 +1,97 @@
-import uuid
-from datetime import datetime, timedelta, timezone
+"""`preflight` kind.
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+See app/db/models/unified.py for the shared column set and the STI
+rationale. The DDL only gives this kind three dedicated columns
+(`preflight_status`, `preflight_payload`, `preflight_expires_at`) --
+`capability_score`, `confidence`, `crawler_version`, `extractor_version`,
+`duration_ms`, `error` have no dedicated columns, so they're folded into
+`preflight_payload` (which already holds the full nested report blob per
+the DDL's own comment: "capability, discovery, fetch, content, extraction,
+sample, limitations, recommendations, duration_ms, ..."). Nothing in the
+app actually reads these six back as separate row attributes (confirmed by
+reading every caller of `PreflightRepository`) -- `app/api/v1/preflight.py`
+only ever reads `row.report_json`/`row.id`/`row.created_at`/
+`row.expires_at` -- so this is a safe, low-risk fold.
+"""
 
-from app.db.base import Base
+from app.db.models.unified import WebIntelUnified
 
 
-def _default_expiration() -> datetime:
-    return datetime.now(timezone.utc) + timedelta(hours=24)
+class PreflightReportRow(WebIntelUnified):
+    __mapper_args__ = {"polymorphic_identity": "preflight"}
 
+    @property
+    def status(self) -> str | None:
+        return self.preflight_status
 
-class PreflightReportRow(Base):
-    __tablename__ = "preflight_reports"
+    @status.setter
+    def status(self, value: str | None) -> None:
+        self.preflight_status = value
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    @property
+    def report_json(self) -> dict:
+        return self.preflight_payload
 
-    url: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_url: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    @report_json.setter
+    def report_json(self, value: dict) -> None:
+        self.preflight_payload = value
 
-    status: Mapped[str] = mapped_column(String(32), nullable=False)
-    capability_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    confidence: Mapped[str] = mapped_column(String(16), nullable=False, default="low")
+    @property
+    def expires_at(self):
+        return self.preflight_expires_at
 
-    report_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    @expires_at.setter
+    def expires_at(self, value) -> None:
+        self.preflight_expires_at = value
 
-    crawler_version: Mapped[str] = mapped_column(String(32), nullable=False, default="0.1.0")
-    extractor_version: Mapped[str] = mapped_column(String(32), nullable=False, default="trafilatura-2.2.0")
+    @property
+    def capability_score(self) -> int | None:
+        return (self.preflight_payload or {}).get("capability", {}).get("score")
 
-    duration_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    @capability_score.setter
+    def capability_score(self, value: int | None) -> None:
+        payload = dict(self.preflight_payload or {})
+        payload["capability"] = {**payload.get("capability", {}), "score": value}
+        self.preflight_payload = payload
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True
-    )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_default_expiration
-    )
+    @property
+    def confidence(self) -> str | None:
+        return (self.preflight_payload or {}).get("capability", {}).get("confidence")
+
+    @confidence.setter
+    def confidence(self, value: str | None) -> None:
+        payload = dict(self.preflight_payload or {})
+        payload["capability"] = {**payload.get("capability", {}), "confidence": value}
+        self.preflight_payload = payload
+
+    @property
+    def crawler_version(self) -> str | None:
+        return (self.preflight_payload or {}).get("crawler_version")
+
+    @crawler_version.setter
+    def crawler_version(self, value: str | None) -> None:
+        self.preflight_payload = {**(self.preflight_payload or {}), "crawler_version": value}
+
+    @property
+    def extractor_version(self) -> str | None:
+        return (self.preflight_payload or {}).get("extractor_version")
+
+    @extractor_version.setter
+    def extractor_version(self, value: str | None) -> None:
+        self.preflight_payload = {**(self.preflight_payload or {}), "extractor_version": value}
+
+    @property
+    def duration_ms(self) -> float | None:
+        return (self.preflight_payload or {}).get("duration_ms")
+
+    @duration_ms.setter
+    def duration_ms(self, value: float | None) -> None:
+        self.preflight_payload = {**(self.preflight_payload or {}), "duration_ms": value}
+
+    @property
+    def error(self) -> str | None:
+        return (self.preflight_payload or {}).get("error")
+
+    @error.setter
+    def error(self, value: str | None) -> None:
+        self.preflight_payload = {**(self.preflight_payload or {}), "error": value}

@@ -19,17 +19,15 @@ class PreflightRepository:
 
     async def save(self, report: PreflightReport, settings: Settings) -> PreflightReportRow:
         now = datetime.now(timezone.utc)
+        preflight_id = uuid.uuid4()
         row = PreflightReportRow(
-            id=uuid.uuid4(),
+            id=preflight_id,
+            preflight_id=preflight_id,
             url=report.url,
             normalized_url=normalize_url(report.url),
             domain=extract_domain(report.url),
             status=report.status,
-            capability_score=report.capability.score,
-            confidence=report.capability.confidence.value,
             report_json=_report_to_json(report),
-            duration_ms=report.duration_ms,
-            error=report.error,
             created_at=now,
             expires_at=now + timedelta(hours=settings.preflight_report_ttl_hours),
         )

@@ -310,12 +310,17 @@ from the API process or a dedicated worker pulling jobs off a queue.
 
 ## Setup
 
-Requires Python 3.12+, PostgreSQL, MinIO (or any S3-compatible store), and
-(for the browser fallback / JS-heavy sites) Playwright's Chromium build.
+Requires Python 3.12+, an **existing external PostgreSQL** server with
+[`docs/unified_schema.sql`](docs/unified_schema.sql) already applied, MinIO
+(or any S3-compatible store), and (for browser fallback) Playwright Chromium.
+
+**PostgreSQL is not started by Docker.** Compose only runs MinIO (+ optional
+API). The app does **not** run Alembic or `create_all` at startup.
 
 ```bash
 # 1. Install dependencies
 uv venv .venv
+source .venv/bin/activate
 uv pip install -e ".[dev]" --python .venv/bin/python
 
 # 2. Install Playwright's browser
@@ -323,21 +328,25 @@ uv pip install -e ".[dev]" --python .venv/bin/python
 
 # 3. Configure environment
 cp .env.example .env
-# edit .env — DATABASE_URL and MINIO_* at minimum
+# edit .env — DATABASE_URL (external Postgres) and MINIO_* required
+# optional: HF_TOKEN for GLiNER first download
 
-# 4. Run migrations
-.venv/bin/python -m alembic upgrade head
+# 4. Ensure schema exists on the external DB (manual; do this once)
+# psql "$DATABASE_URL_SYNC" -f docs/unified_schema.sql
+# (use a non-async URL form for psql, e.g. postgresql://user:pass@host:port/db)
 
-# 5. Start the API (this also starts the in-process monitoring scheduler)
-.venv/bin/uvicorn app.main:app --reload
+# 5. Start MinIO (Terminal A) if not already running
+docker compose up minio
+
+# 6. Start the API (Terminal B) — also starts the in-process monitoring scheduler
+.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Or via Docker Compose (starts Postgres + MinIO + the API, runs migrations
-automatically):
+Or `docker compose up --build` for MinIO + API only (still uses `.env`
+`DATABASE_URL` for external Postgres; never creates Postgres).
 
-```bash
-docker compose up --build
-```
+**Do not run** `alembic upgrade head` against the unified database — the
+files under `migrations/versions/` describe the obsolete multi-table schema.
 
 ## Environment variables
 

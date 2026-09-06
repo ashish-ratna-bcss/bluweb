@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://webintel:webintel@localhost:5432/webintel"
+    database_url: str  # required — external Postgres (docs/unified_schema.sql); no Docker Postgres
 
     preflight_max_sample_pages: int = 15
     preflight_http_timeout_seconds: float = 10.0

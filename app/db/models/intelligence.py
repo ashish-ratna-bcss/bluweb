@@ -1,175 +1,201 @@
-"""Phase 8 entity/story intelligence models.
+"""`entity` / `story` kinds + their embedded-child shapes.
 
-Deliberately minimal relative to the spec's full object list (section 15):
-no separate `document_entities` table (`EntityMention` already carries the
-document<->entity relationship with mention-level detail -- a document_id/
-entity_id pair with no mention detail would be redundant with it), no
-`story_sources` table (source diversity -- domain list, first/latest
-source -- is a derived query over `story_documents` joined to `documents`,
-same "don't create a table a query already answers" discipline Phase 7's
-`document_changes` design used), no separate `Event`/`EventEntity`/
-`EventDocument` tables (an "event" is a derived view over a story's
-entities + earliest timestamp + representative document, not a modeled
-object yet -- see the Phase 8 research report, section 11).
+See app/db/models/unified.py for the shared column set, the STI rationale,
+and the JSONB mutation rule. `EntityAlias`, `EntityMention`,
+`StoryDocument`, `StoryEntity` are no longer their own table rows -- the
+unified schema embeds them as JSONB list entries (`entities.entity_aliases`,
+`documents.entity_mentions`, `stories.story_documents`,
+`stories.story_entities`) -- so they're plain dataclasses here, constructed
+by `IntelligenceRepository` from those entries.
+
+`StoryDocument.domain`/`.published_at` are new fields with no old-schema
+equivalent: `IntelligenceRepository.attach_document_to_story` enriches each
+`story_documents` JSONB entry with the attached document's domain and
+published_at at attach time, so aggregate recomputation
+(`_recompute_story_aggregates`, `get_story_sources`) can iterate the one
+JSONB array in Python instead of joining back to `documents` per entry.
 """
 
 import uuid
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.hybrid import hybrid_property
 
-from app.db.base import Base
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
+from app.db.models.unified import WebIntelUnified
 
 
-class Entity(Base):
-    __tablename__ = "entities"
-    __table_args__ = (
-        # Protects the exact-name-match resolution path (entity_resolver.py)
-        # from concurrent-duplicate races the same way Phase 6/7 protect
-        # FetchStrategyStats/Document: INSERT...ON CONFLICT DO NOTHING +
-        # SELECT...FOR UPDATE keyed on this constraint (intelligence_repository.py).
-        # Fuzzy/alias-match resolution can't use this same guarantee (a
-        # fuzzy variant has a different normalized_name by definition) --
-        # documented as a known, bounded limitation in the Phase 8 report.
-        UniqueConstraint("entity_type", "normalized_name", name="uq_entity_type_normalized_name"),
-        Index("ix_entities_normalized_name", "normalized_name"),
-        Index(
-            "ix_entities_normalized_name_trgm", "normalized_name",
-            postgresql_using="gin", postgresql_ops={"normalized_name": "gin_trgm_ops"},
-        ),
-    )
+class Entity(WebIntelUnified):
+    __mapper_args__ = {"polymorphic_identity": "entity"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    entity_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
-    canonical_name: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
-    language: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    @property
+    def confidence(self) -> float | None:
+        return self.entity_confidence
 
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
+    @confidence.setter
+    def confidence(self, value: float | None) -> None:
+        self.entity_confidence = value
+
+    @property
+    def language(self) -> str | None:
+        return self.entity_language
+
+    @language.setter
+    def language(self, value: str | None) -> None:
+        self.entity_language = value
 
 
-class EntityAlias(Base):
-    __tablename__ = "entity_aliases"
-    __table_args__ = (
-        UniqueConstraint("entity_id", "normalized_alias", name="uq_entity_alias_entity_normalized"),
-        Index("ix_entity_aliases_normalized_alias", "normalized_alias"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    entity_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    alias_text: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_alias: Mapped[str] = mapped_column(Text, nullable=False)
-    language: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    source: Mapped[str] = mapped_column(String(32), nullable=False)  # "extraction" | "merge"
-    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+@dataclass
+class EntityAlias:
+    id: uuid.UUID
+    entity_id: uuid.UUID
+    alias_text: str
+    normalized_alias: str
+    source: str  # "extraction" | "merge"
+    language: str | None = None
+    confidence: float = 0.5
+    created_at: datetime | None = None
 
 
-class EntityMention(Base):
-    __tablename__ = "entity_mentions"
-    __table_args__ = (
-        Index("ix_entity_mentions_document_id", "document_id"),
-        Index("ix_entity_mentions_entity_id", "entity_id"),
-        UniqueConstraint("document_id", "entity_id", "start_offset", name="uq_entity_mention_doc_entity_offset"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
-    )
-    entity_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
-    )
-    raw_text: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_text: Mapped[str] = mapped_column(Text, nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    confidence: Mapped[float] = mapped_column(Float, nullable=False)
-    extractor: Mapped[str] = mapped_column(String(32), nullable=False)  # "regex" | "spacy" | "gliner" | "indicner"
-    start_offset: Mapped[int] = mapped_column(Integer, nullable=False, default=-1)  # -1 = offset not tracked
-    end_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    context: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+@dataclass
+class EntityMention:
+    id: uuid.UUID
+    document_id: uuid.UUID
+    entity_id: uuid.UUID
+    raw_text: str
+    normalized_text: str
+    entity_type: str
+    confidence: float
+    extractor: str  # "regex" | "spacy" | "gliner" | "indicner"
+    start_offset: int = -1  # -1 = offset not tracked
+    end_offset: int | None = None
+    context: str | None = None
+    created_at: datetime | None = None
 
 
-class Story(Base):
-    __tablename__ = "stories"
-    __table_args__ = (
-        Index("ix_stories_last_activity_at", "last_activity_at"),
-    )
+class Story(WebIntelUnified):
+    __mapper_args__ = {"polymorphic_identity": "story"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    canonical_title: Mapped[str | None] = mapped_column(Text, nullable=True)
-    representative_document_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True
-    )
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE", index=True)
+    @property
+    def canonical_title(self) -> str | None:
+        return self.story_canonical_title
 
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    first_published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    @canonical_title.setter
+    def canonical_title(self, value: str | None) -> None:
+        self.story_canonical_title = value
 
-    document_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    source_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    entity_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    @property
+    def representative_document_id(self) -> uuid.UUID | None:
+        return self.document_id
 
-    scoring_version: Mapped[str] = mapped_column(String(16), nullable=False, default="v1")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
+    @representative_document_id.setter
+    def representative_document_id(self, value: uuid.UUID | None) -> None:
+        self.document_id = value
+
+    @property
+    def first_seen_at(self) -> datetime | None:
+        return self.story_first_seen_at
+
+    @first_seen_at.setter
+    def first_seen_at(self, value: datetime | None) -> None:
+        self.story_first_seen_at = value
+
+    @property
+    def first_published_at(self) -> datetime | None:
+        return self.story_first_published_at
+
+    @first_published_at.setter
+    def first_published_at(self, value: datetime | None) -> None:
+        self.story_first_published_at = value
+
+    @property
+    def last_published_at(self) -> datetime | None:
+        return self.story_last_published_at
+
+    @last_published_at.setter
+    def last_published_at(self, value: datetime | None) -> None:
+        self.story_last_published_at = value
+
+    @property
+    def document_count(self) -> int | None:
+        return self.story_document_count
+
+    @document_count.setter
+    def document_count(self, value: int | None) -> None:
+        self.story_document_count = value
+
+    @property
+    def source_count(self) -> int | None:
+        return self.story_source_count
+
+    @source_count.setter
+    def source_count(self, value: int | None) -> None:
+        self.story_source_count = value
+
+    @property
+    def entity_count(self) -> int | None:
+        return self.story_entity_count
+
+    @entity_count.setter
+    def entity_count(self, value: int | None) -> None:
+        self.story_entity_count = value
+
+    @property
+    def scoring_version(self) -> str | None:
+        return self.story_scoring_version
+
+    @scoring_version.setter
+    def scoring_version(self, value: str | None) -> None:
+        self.story_scoring_version = value
+
+    @hybrid_property
+    def status(self) -> str | None:
+        return self.story_status
+
+    @status.setter
+    def status(self, value: str | None) -> None:
+        self.story_status = value
+
+    @status.expression
+    def status(cls):
+        return cls.story_status
+
+    @hybrid_property
+    def last_activity_at(self) -> datetime | None:
+        return self.story_last_activity_at
+
+    @last_activity_at.setter
+    def last_activity_at(self, value: datetime | None) -> None:
+        self.story_last_activity_at = value
+
+    @last_activity_at.expression
+    def last_activity_at(cls):
+        return cls.story_last_activity_at
 
 
-class StoryDocument(Base):
-    __tablename__ = "story_documents"
-    __table_args__ = (
-        UniqueConstraint("story_id", "document_id", name="uq_story_document"),
-        Index("ix_story_documents_story_id", "story_id"),
-        Index("ix_story_documents_document_id", "document_id"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    story_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False
-    )
-    document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
-    )
-    match_score: Mapped[float] = mapped_column(Float, nullable=False)
-    match_method: Mapped[str] = mapped_column(String(32), nullable=False)  # "seed" | "scored"
-    confidence: Mapped[str] = mapped_column(String(16), nullable=False)  # HIGH | MEDIUM | LOW
-    feature_scores: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    matching_evidence: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    scoring_version: Mapped[str] = mapped_column(String(16), nullable=False, default="v1")
-    attached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
+@dataclass
+class StoryDocument:
+    id: uuid.UUID
+    story_id: uuid.UUID
+    document_id: uuid.UUID
+    match_score: float
+    match_method: str  # "seed" | "scored"
+    confidence: str  # HIGH | MEDIUM | LOW
+    feature_scores: dict = field(default_factory=dict)
+    matching_evidence: list = field(default_factory=list)
+    scoring_version: str = "v1"
+    attached_at: datetime | None = None
+    # Enrichment (no old-schema equivalent) -- see module docstring.
+    domain: str | None = None
+    published_at: datetime | None = None
 
 
-class StoryEntity(Base):
-    __tablename__ = "story_entities"
-    __table_args__ = (
-        UniqueConstraint("story_id", "entity_id", name="uq_story_entity"),
-        Index("ix_story_entities_story_id", "story_id"),
-        Index("ix_story_entities_entity_id", "entity_id"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    story_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False
-    )
-    entity_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
-    )
-    mention_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
-    importance: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+@dataclass
+class StoryEntity:
+    id: uuid.UUID
+    story_id: uuid.UUID
+    entity_id: uuid.UUID
+    mention_count: int = 1
+    first_seen_at: datetime | None = None
+    last_seen_at: datetime | None = None
+    importance: float = 0.5
