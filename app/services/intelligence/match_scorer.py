@@ -24,7 +24,7 @@ approximation of IDF this system can afford right now.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 
 from app.services.intelligence.models import EntityType
@@ -205,7 +205,9 @@ def _temporal_proximity(
     if doc_time is None or story_time is None:
         return 0.0
     window_hours = TEMPORAL_WINDOW_HOURS.get(page_type or "", DEFAULT_TEMPORAL_WINDOW_HOURS)
-    delta_hours = abs((doc_time - story_time).total_seconds()) / 3600.0
+    doc = doc_time if doc_time.tzinfo is not None else doc_time.replace(tzinfo=timezone.utc)
+    story = story_time if story_time.tzinfo is not None else story_time.replace(tzinfo=timezone.utc)
+    delta_hours = abs((doc.astimezone(timezone.utc) - story.astimezone(timezone.utc)).total_seconds()) / 3600.0
     if delta_hours >= window_hours:
         return 0.0
     return max(0.0, 1.0 - (delta_hours / window_hours))

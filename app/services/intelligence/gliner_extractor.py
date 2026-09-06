@@ -1,39 +1,21 @@
 """GLiNER zero-shot NER (spec Phase 8 sections 10-11). Apache-2.0
-(`urchade/gliner_multi-v2.1` model card, verified this session), CPU-only
-torch -- no GPU dependency introduced.
+(`urchade/gliner_multi-v2.1` model card), CPU-only torch.
 
-Verified live this session: correctly tags "Narendra Modi"/person,
-"Microsoft Corporation"/organization, "Hyderabad"/location on a real
-sentence, all >=0.98 confidence. Measured cold load ~7s (one-time, cached
-via the module-level singleton below, never per-request per spec section
-47), inference ~370-650ms per short document on CPU (no GPU available in
-this environment) -- real, not vendor-claimed, numbers.
+Primary English NER path: predicts the full controlled label set
+(PERSON/ORG/LOCATION/EVENT/PRODUCT/VEHICLE/SOCIAL_HANDLE). spaCy is only
+a fallback when this model fails to load (see entity_extractor.py).
 
-Label scope is deliberately split from spacy_extractor.py rather than
-duplicated: GLiNER only predicts the labels spaCy's built-in tag set
-*doesn't* have (EVENT/PRODUCT/VEHICLE/SOCIAL_HANDLE) when spaCy already
-ran, and predicts the *full* controlled label set only as the fallback
-path for Indic-routed text when IndicNER is unavailable (spec section 46).
-Running GLiNER's ~400-650ms cost for labels spaCy already covers for free
-would be exactly the "don't blindly run every model on every document"
-spec section 10 forbids.
-
-Known environment quirk, not a code bug: a stale/expired token cached at
-~/.cache/huggingface/token on the dev machine this was built on caused a
-misleading 401 "RepositoryNotFoundError" against the fully public backbone
-model (microsoft/mdeberta-v3-base) even with `token=False` passed
-explicitly -- huggingface_hub's implicit token resolution takes the cached
-file over an explicit override in the version pinned here. Verified by
-temporarily moving the token file aside: identical code succeeds. Not
-expected to recur in a clean container (no such file exists there) --
-documented here rather than worked around with extra code for a dev-
-machine-only condition.
+Cold load downloads once into the Hugging Face cache
+(~/.cache/huggingface); later processes reuse local files. Set `HF_TOKEN`
+in `.env` for the first authenticated download (and to override a stale
+CLI token at ~/.cache/huggingface/token that otherwise causes 401s).
 """
 
 from __future__ import annotations
 
 import logging
 
+from app.core.config import apply_hf_token_to_environ, get_settings
 from app.services.intelligence.models import GLINER_LABELS, EntityCandidate, EntityType
 
 logger = logging.getLogger("webintel.intelligence.gliner")
@@ -41,8 +23,9 @@ logger = logging.getLogger("webintel.intelligence.gliner")
 MODEL_NAME = "urchade/gliner_multi-v2.1"
 CONFIDENCE_THRESHOLD = 0.4
 
-# Labels spaCy's tag set already covers for free -- skip these when spaCy
-# already ran on this document (see module docstring).
+# Kept for API compatibility with entity_extractor callers that still pass
+# skip_spacy_covered_labels (e.g. legacy spaCy-primary path). When GLiNER
+# is primary we pass False so the full label set runs.
 _SPACY_COVERED_LABELS = {"person", "organization", "location"}
 
 _model = None
@@ -59,8 +42,13 @@ def _get_model():
         return _model
     _load_attempted = True
     try:
+        apply_hf_token_to_environ()
         from gliner import GLiNER
-        _model = GLiNER.from_pretrained(MODEL_NAME, token=False)
+
+        token = get_settings().hf_token
+        # Explicit token beats a stale huggingface-cli cache; False = anonymous.
+        _model = GLiNER.from_pretrained(MODEL_NAME, token=token if token else False)
+        logger.info("GLiNER model loaded model=%s", MODEL_NAME)
     except Exception:  # noqa: BLE001 - model unavailable must degrade, never crash the crawl
         logger.warning("GLiNER model unavailable; GLiNER NER disabled", exc_info=True)
         _model = None

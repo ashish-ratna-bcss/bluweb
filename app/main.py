@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 
 from app.api.v1 import crawls, documents, domains, health, intelligence, preflight, search, sources
-from app.core.config import get_settings
+from app.core.config import apply_hf_token_to_environ, get_settings
 from app.core.errors import APIError, api_error_handler, unhandled_exception_handler
 from app.core.logging import configure_logging, request_id_var
 from app.core.metrics import register_metric_subscribers
@@ -17,10 +17,13 @@ from app.services.scheduling.scheduler import scheduler_loop
 from app.services.security.url_security import URLSecurityError
 
 configure_logging()
+# Make HF_TOKEN from .env visible to huggingface_hub before any model load.
+apply_hf_token_to_environ()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    apply_hf_token_to_environ()
     register_metric_subscribers(default_bus)
     task = asyncio.create_task(scheduler_loop(get_settings()))
     yield

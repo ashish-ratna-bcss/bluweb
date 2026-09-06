@@ -50,8 +50,17 @@ class IntelligenceRepository:
         return entity, created_id is not None
 
     async def touch_entity_last_seen(self, entity: Entity, *, seen_at: datetime) -> None:
-        if seen_at > entity.last_seen_at:
-            entity.last_seen_at = seen_at
+        # Normalize both sides to UTC-aware to avoid naive/aware compare crashes
+        # (Postgres may return aware timestamps while extractors pass naive).
+        def _aware(dt: datetime) -> datetime:
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+
+        seen = _aware(seen_at)
+        last = _aware(entity.last_seen_at) if entity.last_seen_at is not None else None
+        if last is None or seen > last:
+            entity.last_seen_at = seen
 
     async def get_entity(self, entity_id: uuid.UUID) -> Entity | None:
         result = await self._session.execute(select(Entity).where(Entity.id == entity_id))

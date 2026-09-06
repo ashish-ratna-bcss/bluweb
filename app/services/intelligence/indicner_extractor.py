@@ -56,8 +56,18 @@ def _get_pipeline():
         return _pipeline
     _load_attempted = True
     try:
+        from app.core.config import apply_hf_token_to_environ, get_settings
+
+        apply_hf_token_to_environ()
         from transformers import pipeline
-        _pipeline = pipeline("token-classification", model=MODEL_NAME, aggregation_strategy="simple")
+
+        token = get_settings().hf_token
+        _pipeline = pipeline(
+            "token-classification",
+            model=MODEL_NAME,
+            aggregation_strategy="simple",
+            token=token if token else None,
+        )
     except Exception:  # noqa: BLE001 - gated/missing model must degrade, never crash the crawl
         logger.warning(
             "IndicNER unavailable (gated HF repo -- see module docstring); Indic NER falls back to GLiNER",

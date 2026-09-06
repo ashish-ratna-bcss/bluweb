@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     domain_browser_superior_rate_threshold: float = 0.6
     domain_low_quality_http_threshold: float = 0.4
 
+    # Hugging Face: used for first-time GLiNER (and optional IndicNER) model
+    # download. After cache is warm under ~/.cache/huggingface, the same token
+    # is still fine to leave set; local files are reused without re-download.
+    hf_token: str | None = None
+
     @property
     def allowed_schemes_set(self) -> set[str]:
         return {s.strip().lower() for s in self.allowed_schemes.split(",") if s.strip()}
@@ -55,3 +60,16 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def apply_hf_token_to_environ() -> None:
+    """Push Settings.hf_token into process env so huggingface_hub /
+    transformers nested loads (GLiNER backbone tokenizer) authenticate
+    with the .env value instead of a stale CLI token file."""
+    import os
+
+    token = get_settings().hf_token
+    if not token:
+        return
+    os.environ["HF_TOKEN"] = token
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = token

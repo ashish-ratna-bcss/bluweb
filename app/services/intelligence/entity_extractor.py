@@ -3,18 +3,15 @@ entry point that runs deterministic regex extraction plus language-routed
 NER, and returns one flat, deduplicated candidate list with extractor
 provenance preserved.
 
-Language routing (spec section 10):
-  ENGLISH/UNKNOWN -> spaCy (PERSON/ORG/LOCATION/DATE/TIME/MONEY, cheap)
-                      + GLiNER for the labels spaCy doesn't have
-                      (EVENT/PRODUCT/VEHICLE/SOCIAL_HANDLE)
+Language routing:
+  ENGLISH/UNKNOWN -> GLiNER primary (full controlled label set)
+                      spaCy only if GLiNER is unavailable
   INDIC           -> IndicNER (PERSON/ORG/LOCATION) if available,
-                      else GLiNER's full label set as a documented fallback
-                      (see indicner_extractor.py)
+                      else GLiNER's full label set as fallback
 
-Never both spaCy and GLiNER predicting the *same* label on the same
-document -- that's the "don't run every model on every document" rule
-from spec section 10, applied as "don't run every model on every LABEL"
-since GLiNER's cost (~400-650ms measured) is real.
+Never run spaCy and GLiNER on the same document when GLiNER succeeds --
+GLiNER already covers the spaCy label set plus EVENT/PRODUCT/VEHICLE/
+SOCIAL_HANDLE.
 """
 
 from __future__ import annotations
@@ -57,20 +54,18 @@ def extract_entities(text: str) -> ExtractionResult:
             else:
                 extractors_unavailable.append("gliner")
     else:
-        # ENGLISH or UNKNOWN: spaCy is the cheap baseline; GLiNER only
-        # fills the label gap spaCy's tag set doesn't cover.
-        ran_spacy = spacy_available()
-        if ran_spacy:
-            candidates.extend(extract_spacy(bounded_text))
-            extractors_used.append("spacy")
-        else:
-            extractors_unavailable.append("spacy")
-
+        # ENGLISH / UNKNOWN: GLiNER is primary; spaCy only as degradation path.
         if ran_gliner:
-            candidates.extend(extract_gliner(bounded_text, skip_spacy_covered_labels=ran_spacy))
+            candidates.extend(extract_gliner(bounded_text, skip_spacy_covered_labels=False))
             extractors_used.append("gliner")
         else:
             extractors_unavailable.append("gliner")
+            ran_spacy = spacy_available()
+            if ran_spacy:
+                candidates.extend(extract_spacy(bounded_text))
+                extractors_used.append("spacy")
+            else:
+                extractors_unavailable.append("spacy")
 
     return ExtractionResult(
         candidates=_reconcile_conflicts(candidates),
@@ -80,27 +75,17 @@ def extract_entities(text: str) -> ExtractionResult:
     )
 
 
-_EXTRACTOR_PRIORITY = {"regex": 0, "spacy": 1, "indicner": 1, "gliner": 2}
+# GLiNER is primary for English; spaCy is fallback-only, so lower priority.
+_EXTRACTOR_PRIORITY = {"regex": 0, "gliner": 1, "indicner": 1, "spacy": 2}
 
 
 def _reconcile_conflicts(candidates: list[EntityCandidate]) -> list[EntityCandidate]:
-    """Cross-extractor sanity check, found necessary by live testing:
-    GLiNER running on the labels spaCy doesn't cover can still mistag a
-    span spaCy/regex already confidently identified (e.g. GLiNER tagging
-    "Microsoft Corporation" PRODUCT at 0.88 when spaCy already has it
-    ORGANIZATION at 0.75, or spaCy mistagging the tail of a phone number
-    as DATE when regex already captured the whole number as PHONE).
+    """Prefer higher-priority extractors on overlapping spans.
 
-    Raw confidence alone is the wrong tiebreak -- GLiNER's zero-shot
-    scores aren't calibrated against spaCy's trained-model scores, so
-    "highest confidence wins" let GLiNER's confident wrong answer beat
-    spaCy's correct one in testing. Extractor priority is right instead:
-    regex (exact pattern match) > spaCy/IndicNER (task-specific trained
-    NER) > GLiNER (general-purpose zero-shot, only meant to fill label
-    gaps the higher-priority extractors don't cover). Overlap is checked
-    by character span, not exact text, since a wrong short span (spaCy's
-    "40-1234-5678") can sit entirely inside a correct longer one (regex's
-    "+91-40-1234-5678")."""
+    regex (exact) > gliner/indicner (primary NER) > spacy (fallback).
+    Overlap is by character span so a short wrong span cannot beat a
+    longer correct one that contains it.
+    """
     ordered = sorted(
         candidates,
         key=lambda c: (_EXTRACTOR_PRIORITY.get(c.extractor, 3), -c.confidence),
