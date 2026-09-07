@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -11,6 +12,30 @@ from app.db.models.crawl import CrawlJob, CrawlPage, CrawlRun, FetchStrategyStat
 from app.db.models.unified import WebIntelUnified
 from app.services.crawling.domain_policy_service import PolicyState, update_policy_after_outcome
 from app.services.crawling.failure_classification import FailureCategory
+
+logger = logging.getLogger("webintel.crawl_repository")
+
+
+def _scalar_one_resilient(result, *, kind: str, key: str):
+    """Prefer a single row; if historical duplicates exist, keep the first
+    and warn instead of raising MultipleResultsFound (WI-14).
+
+    Cardinality must still be fixed via partial unique indexes + cleanup SQL;
+    this only keeps crawls from hard-failing while cleanup is applied.
+    """
+    rows = list(result.scalars().all())
+    if not rows:
+        return None
+    if len(rows) > 1:
+        logger.warning(
+            "Duplicate %s rows for %s (count=%s); using id=%s — run docs/wi14_cleanup_domain_stats.sql",
+            kind,
+            key,
+            len(rows),
+            getattr(rows[0], "id", None),
+        )
+    return rows[0]
+
 
 _DOMAIN_PROFILE_DEFAULTS = {
     "http_attempts": 0, "http_successes": 0, "http_extraction_failures": 0,
@@ -194,8 +219,12 @@ class CrawlRepository:
         return list(result.scalars().all())
 
     async def get_strategy_stats(self, domain: str) -> FetchStrategyStats | None:
-        result = await self._session.execute(select(FetchStrategyStats).where(FetchStrategyStats.domain == domain))
-        return result.scalar_one_or_none()
+        result = await self._session.execute(
+            select(FetchStrategyStats)
+            .where(FetchStrategyStats.domain == domain)
+            .order_by(FetchStrategyStats.id)
+        )
+        return _scalar_one_resilient(result, kind="domain_profile", key=domain)
 
     async def _get_strategy_stats_locked(self, domain: str) -> FetchStrategyStats:
         """Every page on the same domain contends for this one row --
@@ -246,10 +275,14 @@ class CrawlRepository:
         result = await self._session.execute(
             select(FetchStrategyStats)
             .where(FetchStrategyStats.domain == domain)
+            .order_by(FetchStrategyStats.id)
             .with_for_update()
             .execution_options(populate_existing=True)
         )
-        return result.scalar_one()
+        stats = _scalar_one_resilient(result, kind="domain_profile", key=domain)
+        if stats is None:
+            raise RuntimeError(f"domain_profile row missing after upsert for {domain}")
+        return stats
 
     async def record_fetch_outcome(
         self,
@@ -397,9 +430,11 @@ class CrawlRepository:
         (UNIQUE(domain, url) WHERE url_pattern). Aggregated counters live
         on the row; per-page_type detail is in domain_learning.by_page_type."""
         result = await self._session.execute(
-            select(URLPatternStats).where(URLPatternStats.domain == domain, URLPatternStats.url == pattern)
+            select(URLPatternStats)
+            .where(URLPatternStats.domain == domain, URLPatternStats.url == pattern)
+            .order_by(URLPatternStats.id)
         )
-        return result.scalar_one_or_none()
+        return _scalar_one_resilient(result, kind="url_pattern", key=f"{domain}|{pattern}")
 
     async def record_pattern_outcome(
         self,
@@ -439,10 +474,13 @@ class CrawlRepository:
         result = await self._session.execute(
             select(URLPatternStats)
             .where(URLPatternStats.domain == domain, URLPatternStats.url == pattern)
+            .order_by(URLPatternStats.id)
             .with_for_update()
             .execution_options(populate_existing=True)
         )
-        stats = result.scalar_one()
+        stats = _scalar_one_resilient(result, kind="url_pattern", key=f"{domain}|{pattern}")
+        if stats is None:
+            raise RuntimeError(f"url_pattern row missing after upsert for {domain}|{pattern}")
 
         learning = dict(stats.domain_learning or {})
         by_page_type = dict(learning.get("by_page_type") or {})

@@ -68,6 +68,20 @@ def test_allowed_schemes_pass(security: URLSecurityService):
     assert security.validate_scheme("https://example.com/path") == "example.com"
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://https://example.com/",
+        "http://https://example.com/path",
+        "https://http://example.com/",
+    ],
+)
+def test_nested_schemes_rejected_as_invalid(security: URLSecurityService, url: str):
+    with pytest.raises(URLSecurityError) as excinfo:
+        security.validate_scheme(url)
+    assert excinfo.value.code == "URL_INVALID"
+
+
 async def test_dns_rebinding_style_resolution_to_private_ip_is_blocked(
     security: URLSecurityService, monkeypatch: pytest.MonkeyPatch
 ):

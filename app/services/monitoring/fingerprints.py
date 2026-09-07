@@ -79,9 +79,15 @@ def simhash_similarity(a: int | None, b: int | None) -> float:
 
 
 def simhash_distance_tier(a: int | None, b: int | None) -> str:
-    """"near_identical" | "moderate" | "large" -- see thresholds above."""
+    """"near_identical" | "moderate" | "large" -- see thresholds above.
+
+    Missing fingerprints are treated as *near_identical*, not large: a null
+    simhash means we lack evidence of a big rewrite, and defaulting to
+    "large" was producing false HIGH METADATA_CHANGED severities on
+    title-only / metadata-only recrawls (WI-13).
+    """
     if a is None or b is None:
-        return "large"
+        return "near_identical"
     distance = hamming_distance(a, b)
     if distance <= SIMHASH_NEAR_IDENTICAL_MAX:
         return "near_identical"

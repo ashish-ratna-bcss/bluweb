@@ -58,12 +58,35 @@ def extract_deterministic(text: str) -> list[EntityCandidate]:
         candidates.append(_candidate(m, EntityType.MONEY, confidence=0.85))
 
     for m in _PHONE_RE.finditer(text):
-        digit_count = sum(c.isdigit() for c in m.group(0))
+        raw = m.group(0).strip()
+        digit_count = sum(c.isdigit() for c in raw)
         if digit_count < _PHONE_MIN_DIGITS:
             continue
-        candidates.append(_candidate(m, EntityType.PHONE, confidence=0.7))
+        # Date-shaped / year-range noise (e.g. 2020-2024, 01/02/2024) often
+        # matches the phone regex; reject before emitting PHONE (WI-15).
+        if _looks_like_date_noise(raw, digit_count):
+            continue
+        # Slightly higher confidence when digit count is phone-plausible and
+        # separators look intentional; still below EMAIL/URL certainty.
+        confidence = 0.82 if digit_count >= 10 else 0.75
+        candidates.append(_candidate(m, EntityType.PHONE, confidence=confidence))
 
     return candidates
+
+
+_DATE_NOISE_RE = re.compile(
+    r"^(?:\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}|\d{4}[-/]\d{4}|\d{1,2}[-/]\d{1,2})$"
+)
+
+
+def _looks_like_date_noise(raw: str, digit_count: int) -> bool:
+    compact = re.sub(r"\s+", "", raw)
+    if _DATE_NOISE_RE.match(compact):
+        return True
+    # Bare 8-digit YYYYMMDD / DDMMYYYY without phone separators
+    if digit_count in (7, 8) and re.fullmatch(r"\d+", compact):
+        return True
+    return False
 
 
 def _candidate(match: re.Match, entity_type: EntityType, *, confidence: float) -> EntityCandidate:

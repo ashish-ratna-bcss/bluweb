@@ -128,6 +128,7 @@ async def process_document_intelligence(
         canonical_title=title, representative_document_id=document_id,
         status="ACTIVE", first_seen_at=now, last_activity_at=now,
         first_published_at=document_time, last_published_at=document_time,
+        document_count=0, source_count=0, entity_count=0,
     )
     await intel_repo.attach_document_to_story(
         story=story, document_id=document_id, match_score=1.0, match_method="seed",

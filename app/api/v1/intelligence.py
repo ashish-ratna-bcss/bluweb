@@ -75,10 +75,17 @@ async def get_entity_stories(entity_id: uuid.UUID, db: AsyncSession = Depends(ge
 
 
 def _to_story_response(story) -> StorySummaryResponse:
+    # Counts are nullable on the STI row until the first recompute; API contract
+    # requires ints (StorySummaryResponse), so coerce None → 0 for list/detail.
     return StorySummaryResponse(
-        story_id=story.id, canonical_title=story.canonical_title, status=story.status,
-        first_seen_at=story.first_seen_at, last_activity_at=story.last_activity_at,
-        document_count=story.document_count, source_count=story.source_count, entity_count=story.entity_count,
+        story_id=story.id,
+        canonical_title=story.canonical_title,
+        status=story.status or "unknown",
+        first_seen_at=story.first_seen_at,
+        last_activity_at=story.last_activity_at,
+        document_count=int(story.document_count or 0),
+        source_count=int(story.source_count or 0),
+        entity_count=int(story.entity_count or 0),
     )
 
 

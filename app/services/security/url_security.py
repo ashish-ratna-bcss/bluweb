@@ -11,6 +11,7 @@ and a private IP at connect time.
 from __future__ import annotations
 
 import ipaddress
+import re
 import socket
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -21,9 +22,23 @@ import httpx
 
 from app.core.config import Settings
 
+# Nested / doubled schemes like https://https://example.com/ — urlsplit
+# treats the second "https" as the hostname and never reaches real DNS for
+# example.com (WI-10). Reject before resolution.
+_NESTED_SCHEME_RE = re.compile(r"(?i)^(?:https?://)+(?:https?://)")
+
 
 class URLSecurityError(Exception):
-    """Raised when a URL fails SSRF/security validation."""
+    """Raised when a URL fails SSRF/security validation.
+
+    `code` is a stable API/machine code; `str(self)` may contain technical
+    detail for logs. Handlers must map `code` to user-safe copy (WI-11).
+    """
+
+    def __init__(self, message: str, *, code: str = "URL_BLOCKED"):
+        super().__init__(message)
+        self.message = message
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -47,13 +62,39 @@ class URLSecurityService:
         self._resolver.lifetime = 5
 
     def validate_scheme(self, url: str) -> str:
-        parts = urlsplit(url)
+        raw = (url or "").strip()
+        if not raw:
+            raise URLSecurityError("URL is empty", code="URL_INVALID")
+
+        if _NESTED_SCHEME_RE.match(raw):
+            raise URLSecurityError(
+                f"nested or duplicated scheme in URL: {raw!r}",
+                code="URL_INVALID",
+            )
+
+        parts = urlsplit(raw)
         scheme = (parts.scheme or "").lower()
         if scheme not in self._settings.allowed_schemes_set:
-            raise URLSecurityError(f"scheme '{scheme or '(none)'}' is not allowed")
+            raise URLSecurityError(
+                f"scheme '{scheme or '(none)'}' is not allowed",
+                code="URL_INVALID",
+            )
         if not parts.hostname:
-            raise URLSecurityError("URL has no hostname")
-        return parts.hostname
+            raise URLSecurityError("URL has no hostname", code="URL_INVALID")
+
+        hostname = parts.hostname.lower().rstrip(".")
+        # urlsplit("https://https://example.com/") → hostname "https"
+        if hostname in self._settings.allowed_schemes_set:
+            raise URLSecurityError(
+                f"hostname looks like a URL scheme ({hostname!r}); check for a duplicated scheme",
+                code="URL_INVALID",
+            )
+        if "/" in hostname or " " in hostname:
+            raise URLSecurityError(
+                f"hostname is malformed: {hostname!r}",
+                code="URL_INVALID",
+            )
+        return hostname
 
     def check_ip_allowed(self, ip_str: str) -> None:
         if not self._settings.block_private_networks:
@@ -67,7 +108,10 @@ class URLSecurityService:
             or ip.is_reserved
             or ip.is_unspecified
         ):
-            raise URLSecurityError(f"resolved IP {ip_str} is in a blocked range")
+            raise URLSecurityError(
+                f"resolved IP {ip_str} is in a blocked range",
+                code="URL_BLOCKED",
+            )
 
     async def resolve_and_validate(self, hostname: str) -> str:
         """Resolve hostname to an IP, validate it, and return the IP string.
@@ -88,11 +132,17 @@ class URLSecurityService:
             try:
                 answer = await self._resolver.resolve(hostname, "AAAA")
             except dns.exception.DNSException as exc:
-                raise URLSecurityError(f"DNS resolution failed for {hostname}: {exc}") from exc
+                raise URLSecurityError(
+                    f"DNS resolution failed for {hostname}: {exc}",
+                    code="DNS_RESOLUTION_FAILED",
+                ) from exc
 
         resolved_ips = [rdata.address for rdata in answer]
         if not resolved_ips:
-            raise URLSecurityError(f"DNS resolution for {hostname} returned no addresses")
+            raise URLSecurityError(
+                f"DNS resolution for {hostname} returned no addresses",
+                code="DNS_RESOLUTION_FAILED",
+            )
 
         for ip_str in resolved_ips:
             self.check_ip_allowed(ip_str)

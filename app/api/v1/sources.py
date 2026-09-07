@@ -35,7 +35,9 @@ async def create_source(
     try:
         security.validate_scheme(body.url)
     except URLSecurityError as exc:
-        raise APIError(code="URL_BLOCKED", message=str(exc), status_code=status.HTTP_400_BAD_REQUEST) from exc
+        from app.core.url_errors import url_security_to_api_error
+
+        raise url_security_to_api_error(exc) from exc
 
     preflight_repo = PreflightRepository(db)
     preflight = await preflight_repo.get(body.preflight_id)
@@ -149,9 +151,9 @@ async def get_source_statistics(source_id: uuid.UUID, db: AsyncSession = Depends
     doc_repo = DocumentRepository(db)
     return SourceStatisticsResponse(
         source_id=source.id,
-        status=source.status,
-        current_interval_seconds=source.current_interval_seconds,
-        consecutive_unchanged_crawls=source.consecutive_unchanged_crawls,
+        status=source.status or "paused",
+        current_interval_seconds=int(source.current_interval_seconds or source.min_interval_seconds or 900),
+        consecutive_unchanged_crawls=int(source.consecutive_unchanged_crawls or 0),
         last_crawl_at=source.last_crawl_at,
         next_crawl_at=source.next_crawl_at,
         total_documents=await doc_repo.count_for_source(source_id),

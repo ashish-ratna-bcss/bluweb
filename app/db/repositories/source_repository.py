@@ -53,6 +53,7 @@ class SourceRepository:
             min_interval_seconds=min_interval_seconds,
             max_interval_seconds=max_interval_seconds,
             current_interval_seconds=min_interval_seconds,
+            consecutive_unchanged_crawls=0,
         )
         self._session.add(source)
         await self._session.commit()

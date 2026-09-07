@@ -66,9 +66,9 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 
 @app.exception_handler(URLSecurityError)
 async def url_security_error_handler(request: Request, exc: URLSecurityError):
-    return await api_error_handler(
-        request, APIError(code="URL_BLOCKED", message=str(exc), status_code=400)
-    )
+    from app.core.url_errors import url_security_to_api_error
+
+    return await api_error_handler(request, url_security_to_api_error(exc))
 
 
 app.include_router(health.router)

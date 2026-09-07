@@ -14,6 +14,7 @@ CLI token at ~/.cache/huggingface/token that otherwise causes 401s).
 from __future__ import annotations
 
 import logging
+import re
 
 from app.core.config import apply_hf_token_to_environ, get_settings
 from app.services.intelligence.models import GLINER_LABELS, EntityCandidate, EntityType
@@ -22,6 +23,10 @@ logger = logging.getLogger("webintel.intelligence.gliner")
 
 MODEL_NAME = "urchade/gliner_multi-v2.1"
 CONFIDENCE_THRESHOLD = 0.4
+# SOCIAL_HANDLE is especially noisy on generic nouns; require a stronger score
+# and a handle-like surface form before accepting (WI-15).
+_SOCIAL_HANDLE_MIN_CONFIDENCE = 0.65
+_HANDLE_SURFACE_RE = re.compile(r"^@?[\w.]{2,32}$")
 
 # Kept for API compatibility with entity_extractor callers that still pass
 # skip_spacy_covered_labels (e.g. legacy spaCy-primary path). When GLiNER
@@ -78,8 +83,18 @@ def extract_gliner(text: str, *, skip_spacy_covered_labels: bool) -> list[Entity
         entity_type = GLINER_LABELS.get(e["label"])
         if entity_type is None:
             continue
+        score = float(e["score"])
+        text_span = (e.get("text") or "").strip()
+        if entity_type == EntityType.SOCIAL_HANDLE:
+            if score < _SOCIAL_HANDLE_MIN_CONFIDENCE:
+                continue
+            if not _HANDLE_SURFACE_RE.match(text_span):
+                continue
+            # Reject obvious non-handles (spaces already blocked; filter common words)
+            if text_span.lstrip("@").lower() in {"the", "and", "for", "with", "from", "this", "that"}:
+                continue
         candidates.append(EntityCandidate(
-            raw_text=e["text"], entity_type=entity_type, confidence=float(e["score"]), extractor="gliner",
+            raw_text=text_span, entity_type=entity_type, confidence=score, extractor="gliner",
             start_offset=e.get("start", -1), end_offset=e.get("end"),
         ))
     return candidates

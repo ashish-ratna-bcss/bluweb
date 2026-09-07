@@ -309,17 +309,28 @@ class IntelligenceRepository:
         list -- no join needed since each entry already carries the
         attached document's domain/published_at (enriched at attach time,
         see `attach_document_to_story`)."""
+        def _aware(dt: datetime) -> datetime:
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+
         entries = story.story_documents or []
         story.document_count = len(entries)
         story.source_count = len({e["domain"] for e in entries if e.get("domain")})
         story.last_activity_at = datetime.now(timezone.utc)
 
-        published_ats = [datetime.fromisoformat(e["published_at"]) for e in entries if e.get("published_at")]
+        published_ats = [
+            _aware(datetime.fromisoformat(e["published_at"]))
+            for e in entries
+            if e.get("published_at")
+        ]
         if published_ats:
             earliest, latest = min(published_ats), max(published_ats)
-            if story.first_published_at is None or earliest < story.first_published_at:
+            first = _aware(story.first_published_at) if story.first_published_at else None
+            last = _aware(story.last_published_at) if story.last_published_at else None
+            if first is None or earliest < first:
                 story.first_published_at = earliest
-            if story.last_published_at is None or latest > story.last_published_at:
+            if last is None or latest > last:
                 story.last_published_at = latest
 
     def _upsert_story_entities(self, story: Story, entity_ids: list[uuid.UUID]) -> None:

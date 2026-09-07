@@ -48,9 +48,11 @@ def test_major_rewrite_is_large_distance():
     assert simhash_similarity(simhash64(_BASE), simhash64(unrelated)) < 0.7
 
 
-def test_missing_fingerprint_is_treated_as_large_not_crash():
-    assert simhash_distance_tier(None, simhash64(_BASE)) == "large"
+def test_missing_fingerprint_is_treated_as_near_identical_not_crash():
+    # Missing simhash is lack of evidence, not proof of a large rewrite (WI-13).
+    assert simhash_distance_tier(None, simhash64(_BASE)) == "near_identical"
     assert simhash_similarity(None, simhash64(_BASE)) == 0.0
+
 
 
 def test_title_hash_ignores_case_and_whitespace():

@@ -32,7 +32,9 @@ async def create_crawl(
         hostname = security.validate_scheme(body.url)
         await security.resolve_and_validate(hostname)
     except URLSecurityError as exc:
-        raise APIError(code="URL_BLOCKED", message=str(exc), status_code=status.HTTP_400_BAD_REQUEST) from exc
+        from app.core.url_errors import url_security_to_api_error
+
+        raise url_security_to_api_error(exc) from exc
 
     repo = CrawlRepository(db)
     job = await repo.create_job(

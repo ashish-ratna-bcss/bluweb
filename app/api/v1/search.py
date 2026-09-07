@@ -59,7 +59,9 @@ async def search_instant(
         hostname = security.validate_scheme(body.url)
         await security.resolve_and_validate(hostname)
     except URLSecurityError as exc:
-        raise APIError(code="URL_BLOCKED", message=str(exc), status_code=status.HTTP_400_BAD_REQUEST) from exc
+        from app.core.url_errors import url_security_to_api_error
+
+        raise url_security_to_api_error(exc) from exc
 
     crawl_repo = CrawlRepository(db)
     job = await crawl_repo.create_job(

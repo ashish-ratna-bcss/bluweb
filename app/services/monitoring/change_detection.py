@@ -417,14 +417,20 @@ def _detect_generic_change(previous: DocumentSnapshot, current: DocumentSnapshot
             "paragraphs_modified": para_diff.paragraphs_modified,
         }
 
-    if tier == "near_identical":
-        severity = Severity.LOW
-    elif tier == "moderate":
-        severity = Severity.MEDIUM
+    # Metadata/title-only changes must not escalate to HIGH via a missing
+    # simhash (treated as near_identical upstream). Body rewrites can still
+    # reach MEDIUM/HIGH from a real distance tier.
+    if body_changed:
+        change_type = ChangeType.CONTENT_CHANGED
+        if tier == "near_identical":
+            severity = Severity.LOW
+        elif tier == "moderate":
+            severity = Severity.MEDIUM
+        else:
+            severity = Severity.HIGH
     else:
-        severity = Severity.HIGH
-
-    change_type = ChangeType.CONTENT_CHANGED if body_changed else ChangeType.METADATA_CHANGED
+        change_type = ChangeType.METADATA_CHANGED
+        severity = Severity.LOW
 
     return ChangeResult(
         changed=True, change_type=change_type, severity=severity, similarity=similarity,
