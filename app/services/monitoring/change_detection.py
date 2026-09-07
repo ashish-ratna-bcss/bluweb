@@ -26,6 +26,17 @@ from app.services.monitoring.text_diff import diff_paragraphs
 
 _FORUM_TYPES = frozenset({PageType.FORUM_THREAD.value, PageType.FORUM_INDEX.value, PageType.DISCUSSION_THREAD.value})
 _NEWS_TYPES = frozenset({PageType.NEWS_ARTICLE.value, PageType.BLOG_POST.value})
+# Mirrors extraction_router.INDEX_TYPES minus FORUM_INDEX (kept as a local
+# literal, not an import, to avoid a new monitoring -> extraction module
+# dependency): any page type routed through the generic repeated-item
+# extractor produces the same metadata["listings"] shape
+# _detect_index_change compares by id, regardless of which index page type
+# produced it. FORUM_INDEX is excluded here since detect_change() already
+# routes it to _detect_forum_change via _FORUM_TYPES above, checked first.
+_INDEX_TYPES = frozenset({
+    PageType.CLASSIFIED_INDEX.value, PageType.SEARCH_RESULTS.value, PageType.CATEGORY.value,
+    PageType.NEWS_INDEX.value, PageType.DIRECTORY.value,
+})
 
 
 def detect_change(*, previous: DocumentSnapshot, current: DocumentSnapshot, page_type: str | None) -> ChangeResult:
@@ -40,7 +51,7 @@ def detect_change(*, previous: DocumentSnapshot, current: DocumentSnapshot, page
         return _detect_forum_change(previous, current)
     if page_type == PageType.CLASSIFIED_LISTING.value:
         return _detect_listing_change(previous, current)
-    if page_type == PageType.CLASSIFIED_INDEX.value:
+    if page_type in _INDEX_TYPES:
         return _detect_index_change(previous, current)
     return _detect_generic_change(previous, current)
 

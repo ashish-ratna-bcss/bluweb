@@ -303,6 +303,7 @@ class CrawlRepository:
         completeness: float | None = None,
         browser_comparison: str | None = None,
         index_children_discovered: int = 0,
+        server_retry_after_seconds: float | None = None,
     ) -> FetchStrategyStats:
         stats = await self._get_strategy_stats_locked(domain)
 
@@ -385,6 +386,7 @@ class CrawlRepository:
         )
         policy_after = update_policy_after_outcome(
             policy_before, failure_category=policy_category, now=now, max_concurrency=max_concurrency,
+            server_retry_after_seconds=server_retry_after_seconds,
         )
         stats.crawl_delay_ms = policy_after.crawl_delay_ms
         stats.recommended_concurrency = policy_after.recommended_concurrency

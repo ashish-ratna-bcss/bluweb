@@ -78,6 +78,37 @@ def test_failed_probe_after_open_reopens_with_fresh_timer():
     assert still_failing.circuit_opened_at == NOW  # timer doesn't reset while already open+failing more
 
 
+# -- server-declared Retry-After (Universal Adaptive Web Intelligence
+# next-phase item 9: wire the value that was already being parsed but never
+# consumed downstream) --
+
+
+def test_server_retry_after_extends_delay_beyond_computed_backoff():
+    # Fixed multiplier alone would give 500ms (the throttle floor from a
+    # cold state); a server asking for 10s should win.
+    state = update_policy_after_outcome(
+        _healthy_state(), failure_category=FailureCategory.HTTP_429, now=NOW, server_retry_after_seconds=10.0,
+    )
+    assert state.crawl_delay_ms == 10_000.0
+
+
+def test_server_retry_after_never_shortens_computed_backoff():
+    # A domain already backed off to 20s that returns Retry-After: 1 must
+    # not have its delay shortened just because the server said "1".
+    degraded_state = PolicyState(crawl_delay_ms=20_000.0, recommended_concurrency=1, circuit_state="degraded", circuit_opened_at=None, consecutive_failures=3)
+    state = update_policy_after_outcome(
+        degraded_state, failure_category=FailureCategory.HTTP_429, now=NOW, server_retry_after_seconds=1.0,
+    )
+    assert state.crawl_delay_ms >= 20_000.0 * 1.5  # still applies its own multiplier, not overridden downward
+
+
+def test_server_retry_after_still_capped_at_max_delay():
+    state = update_policy_after_outcome(
+        _healthy_state(), failure_category=FailureCategory.HTTP_429, now=NOW, server_retry_after_seconds=3600.0,
+    )
+    assert state.crawl_delay_ms == 30_000.0
+
+
 def test_one_browser_failure_does_not_disable_browser_globally():
     # This module doesn't track browser separately from HTTP failures --
     # confirms a single failure of any kind stays in "healthy", i.e. no

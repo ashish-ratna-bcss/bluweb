@@ -201,6 +201,24 @@ def test_index_ordering_change_alone_is_not_meaningful():
     assert not r.changed
 
 
+# -- other index-shaped page types route through the same listing
+# comparator, not just CLASSIFIED_INDEX (extraction_router.INDEX_TYPES) --
+
+
+def test_directory_listing_added_uses_index_comparator():
+    prev = _snap(metadata={"listings": [{"id": "person-1"}]})
+    curr = _snap(metadata={"listings": [{"id": "person-1"}, {"id": "person-2"}]})
+    r = detect_change(previous=prev, current=curr, page_type="DIRECTORY")
+    assert r.change_type == ChangeType.LISTING_ADDED
+
+
+def test_news_index_listing_removed_uses_index_comparator():
+    prev = _snap(metadata={"listings": [{"id": "a"}, {"id": "b"}]})
+    curr = _snap(metadata={"listings": [{"id": "a"}]})
+    r = detect_change(previous=prev, current=curr, page_type="NEWS_INDEX")
+    assert r.change_type == ChangeType.LISTING_REMOVED
+
+
 # -- generic page -----------------------------------------------------------
 
 def test_generic_same_page_no_change():

@@ -52,6 +52,12 @@ domain_throttle_events = Counter("webintel_domain_throttle_events_total", "Reque
 domain_circuit_open = Counter("webintel_domain_circuit_open_total", "Times a domain's circuit breaker opened", registry=registry)
 http_403_total = Counter("webintel_http_403_total", "403 responses observed", registry=registry)
 http_429_total = Counter("webintel_http_429_total", "429 responses observed", registry=registry)
+# `verdict` is SoftBlockVerdict, a fixed ~7-value enum -- bounded cardinality,
+# same reasoning as `strategy` above.
+soft_block_total = Counter(
+    "webintel_soft_block_total", "Soft-block verdicts observed on transport-successful fetches",
+    ["verdict"], registry=registry,
+)
 
 scrapling_attempts = Counter("webintel_scrapling_attempts_total", "Scrapling adaptive-extraction fallback attempts", registry=registry)
 scrapling_success = Counter("webintel_scrapling_success_total", "Scrapling adaptive-extraction fallback successes", registry=registry)
@@ -189,6 +195,7 @@ def register_metric_subscribers(bus: EventBus) -> None:
     bus.subscribe("PAGINATION_DETECTED", lambda event: pagination_detected_total.labels(found=str(bool(event.payload.get("found")))).inc())
     bus.subscribe("INDEX_EXTRACTED", lambda event: index_items_extracted_total.inc(event.payload.get("listing_count", 0)))
     bus.subscribe("EXTRACTION_QUALITY_SCORED", _on_extraction_quality_scored)
+    bus.subscribe("SOFT_BLOCK_DETECTED", lambda event: soft_block_total.labels(verdict=event.payload.get("verdict", "UNKNOWN")).inc())
     bus.subscribe("PROVENANCE_RECORDED", lambda event: provenance_fields_recorded_total.inc(event.payload.get("field_count", 0)))
     bus.subscribe("DOMAIN_PROFILE_UPDATED", lambda event: domain_capability_updates_total.labels(kind="fetch").inc())
     bus.subscribe("INFINITE_SCROLL_DETECTED", lambda event: infinite_scroll_detected_total.inc())

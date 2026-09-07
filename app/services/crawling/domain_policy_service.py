@@ -43,6 +43,7 @@ class PolicyState:
 
 def update_policy_after_outcome(
     state: PolicyState, *, failure_category: FailureCategory, now: datetime, max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
+    server_retry_after_seconds: float | None = None,
 ) -> PolicyState:
     success = failure_category == FailureCategory.NONE
 
@@ -62,7 +63,14 @@ def update_policy_after_outcome(
 
     multiplier = 2.0 if is_throttle_signal else 1.5
     floor_ms = 500.0 if is_throttle_signal else 200.0
-    new_delay = min(MAX_DELAY_MS, max(floor_ms, state.crawl_delay_ms * multiplier))
+    computed_delay = max(floor_ms, state.crawl_delay_ms * multiplier)
+    # A server-declared Retry-After is more authoritative than our own
+    # guessed multiplier -- honor whichever is LARGER (never shorten a wait
+    # the server actually asked for), still capped at the same ceiling every
+    # other delay in this policy respects.
+    if server_retry_after_seconds is not None:
+        computed_delay = max(computed_delay, server_retry_after_seconds * 1000)
+    new_delay = min(MAX_DELAY_MS, computed_delay)
 
     if consecutive_failures >= OPEN_THRESHOLD:
         circuit_state = "open"

@@ -43,6 +43,16 @@ def test_search_results_url_pattern():
     assert result.page_type == PageType.SEARCH_RESULTS
 
 
+def test_staff_directory_url_pattern():
+    result = classify(url="https://example.gov/about/staff/", structured=_EMPTY, html_analysis=None)
+    assert result.page_type == PageType.DIRECTORY
+
+
+def test_member_directory_url_pattern():
+    result = classify(url="https://example.org/member-directory", structured=_EMPTY, html_analysis=None)
+    assert result.page_type == PageType.DIRECTORY
+
+
 def test_seed_homepage_flag_wins_over_url_heuristics():
     result = classify(url="https://example.com/", structured=_EMPTY, html_analysis=None, is_seed_homepage=True)
     assert result.page_type == PageType.HOME

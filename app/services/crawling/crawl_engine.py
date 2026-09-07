@@ -48,6 +48,7 @@ from app.services.intelligence.story_service import process_document_intelligenc
 from app.services.monitoring.change_detection import detect_change
 from app.services.monitoring.fingerprints import from_signed_int64, to_signed_int64
 from app.services.monitoring.models import DocumentSnapshot
+from app.services.normalization.url_frontier import is_sink_url
 from app.services.normalization.url_normalizer import extract_domain, normalize_url, registrable_domain
 from app.services.preflight.html import analyze_html
 from app.services.preflight.javascript import assess_javascript_dependency
@@ -98,6 +99,7 @@ class RunStats:
     bytes_downloaded: int = 0
     pagination_pages_enqueued: int = 0
     ssrf_rejected_urls: int = 0
+    sink_filtered_urls: int = 0
 
     def as_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}
@@ -112,8 +114,14 @@ async def _safe_enqueue(
     stats: RunStats,
     max_discovered: int,
 ) -> bool:
-    """Normalize → SSRF validate → budget check → frontier. Never bypass SSRF
-    for discovered URLs (pagination, index children, HTML links)."""
+    """Normalize → sink filter → SSRF validate → budget check → frontier.
+    Never bypass SSRF for discovered URLs (pagination, index children, HTML
+    links). Sink filter (login/cart/account path segments -- generic, never
+    site-specific) runs first since it's a cheap string check, before the
+    network-cost SSRF DNS resolution below."""
+    if is_sink_url(url):
+        stats.sink_filtered_urls += 1
+        return False
     if stats.pages_discovered >= max_discovered:
         return False
     try:
@@ -606,6 +614,7 @@ async def _process_page(
             completeness=completeness.overall if completeness else None,
             browser_comparison=browser_comparison,
             index_children_discovered=child_url_count,
+            server_retry_after_seconds=fetch_result.retry_after_seconds,
         )
         if js_required:
             await default_bus.publish(Event("STRATEGY_ESCALATED", {"url": url, "domain": domain}))

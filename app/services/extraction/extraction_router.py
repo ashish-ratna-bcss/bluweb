@@ -37,6 +37,7 @@ INDEX_TYPES = (
     PageType.CATEGORY,
     PageType.NEWS_INDEX,
     PageType.FORUM_INDEX,
+    PageType.DIRECTORY,
 )
 MIN_BODY_CHARS_BEFORE_SCRAPLING_FALLBACK = 100
 MIN_INDEX_ITEMS = 5  # matches index_extractor.MIN_REPEATED_ITEMS -- below this, an "index" page is probably just a page with a few incidental links

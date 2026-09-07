@@ -45,6 +45,11 @@ class PageType(StrEnum):
     CONSENT_WALL = "CONSENT_WALL"
     JS_SHELL = "JS_SHELL"
     SOFT_BLOCK = "SOFT_BLOCK"
+    # Staff/member/people directories (corporate, government, academic) --
+    # structurally an index page (repeated records), routed through the same
+    # generic index extractor as CLASSIFIED_INDEX/NEWS_INDEX rather than a
+    # dedicated extractor (see extraction_router.py's INDEX_TYPES).
+    DIRECTORY = "DIRECTORY"
     UNKNOWN = "UNKNOWN"
 
 
@@ -60,6 +65,9 @@ _FORUM_INDEX_URL_RE = re.compile(r"/(forum|forums|board|boards)/?$", re.IGNORECA
 _CLASSIFIED_LISTING_URL_RE = re.compile(r"/(listing|classified|ad|item)s?/[\w-]+\d", re.IGNORECASE)
 _CLASSIFIED_INDEX_URL_RE = re.compile(r"/(listings|classifieds|ads)/?$", re.IGNORECASE)
 _NEWS_INDEX_URL_RE = re.compile(r"/(news|blog|articles|stories)/?$", re.IGNORECASE)
+_DIRECTORY_URL_RE = re.compile(
+    r"/(directory|member-directory|members|staff|team|people|faculty|employees)/?$", re.IGNORECASE
+)
 _SEARCH_URL_RE = re.compile(r"[?&]q=|/search[/?]", re.IGNORECASE)
 _CATEGORY_URL_RE = re.compile(r"/(category|categories|tag|tags|section)/", re.IGNORECASE)
 _DOCUMENT_EXTENSIONS = (".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx")
@@ -151,6 +159,9 @@ def classify(
     if _NEWS_INDEX_URL_RE.search(url):
         signals.append("URL pattern: news/blog index")
         return ClassificationResult(PageType.NEWS_INDEX, 0.55, signals)
+    if _DIRECTORY_URL_RE.search(url):
+        signals.append("URL pattern: staff/member directory")
+        return ClassificationResult(PageType.DIRECTORY, 0.55, signals)
     if _SEARCH_URL_RE.search(url):
         signals.append("URL pattern: search")
         return ClassificationResult(PageType.SEARCH_RESULTS, 0.7, signals)
