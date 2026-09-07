@@ -2,23 +2,58 @@
 
 ponytail: phase-1 scope is just enough to give preflight reports and
 sources a stable identity key (lowercase scheme+host, default port and
-fragment stripped). Full dedup rules (tracking-parameter stripping,
-canonical-URL preference, encoding normalization) belong to the
-deduplication service in a later phase -- query strings are left alone
-here since some sites use them as real content identifiers.
+fragment stripped, tracking-parameter stripping for frontier identity).
+Canonical-URL preference and encoding normalization still belong to the
+deduplication service in a later phase -- content-significant query
+params (id, page, q, etc.) are preserved.
 """
 
 from __future__ import annotations
 
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import tldextract
 
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 
+# Exact-name tracking params (case-insensitive). Also drop any name
+# starting with ``utm_``. Content-significant params (id, page, q, p, sort)
+# are intentionally not listed.
+_TRACKING_PARAMS = frozenset(
+    {
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "utm_id",
+        "utm_reader",
+        "gclid",
+        "gbraid",
+        "wbraid",
+        "fbclid",
+        "mc_cid",
+        "mc_eid",
+        "_ga",
+        "_gl",
+        "igshid",
+        "mno",
+        "ref",
+        "source",
+        "campaign",
+    }
+)
+
 # tldextract ships/caches its own Public Suffix List snapshot -- offline,
 # no network fetch on first use, safe in a sandboxed environment.
 _tld_extract = tldextract.TLDExtract(suffix_list_urls=())
+
+
+def _is_tracking_param(name: str) -> bool:
+    lower = name.lower()
+    if lower.startswith("utm_"):
+        return True
+    return lower in _TRACKING_PARAMS
 
 
 def normalize_url(url: str) -> str:
@@ -35,7 +70,15 @@ def normalize_url(url: str) -> str:
     if len(path) > 1 and path.endswith("/"):
         path = path.rstrip("/")
 
-    return urlunsplit((scheme, netloc, path, parts.query, ""))
+    kept = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not _is_tracking_param(k)]
+    query = urlencode(kept)
+
+    return urlunsplit((scheme, netloc, path, query, ""))
+
+
+def canonicalize_for_frontier(url: str) -> str:
+    """normalize_url + identity for RequestQueue dedup."""
+    return normalize_url(url)
 
 
 def extract_domain(url: str) -> str:

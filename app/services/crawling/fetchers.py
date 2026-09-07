@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 import httpx
 from playwright.async_api import Route, async_playwright
@@ -12,6 +14,8 @@ from app.services.crawling.browser_scroll import ScrollBudget, ScrollResult, exp
 from app.services.security.url_security import URLSecurityError, URLSecurityService
 
 MAX_REDIRECTS = 5
+_MAX_RETRY_AFTER_SECONDS = 60.0
+_DEFAULT_RETRY_AFTER_SECONDS = 1.0
 
 # Process-wide concurrency cap on Chromium launches (item 2): each call
 # spins up a full browser process, and nothing previously bounded how many
@@ -42,6 +46,25 @@ class PageFetchResult:
     used_browser: bool = False
     error: str | None = None
     scroll: ScrollResult | None = None
+    retry_after_seconds: float | None = None
+
+
+def _parse_retry_after(header_value: str | None) -> float:
+    """Parse Retry-After as seconds or HTTP-date; clamp to [0, 60]."""
+    if not header_value or not header_value.strip():
+        return _DEFAULT_RETRY_AFTER_SECONDS
+    raw = header_value.strip()
+    try:
+        seconds = float(int(raw))
+    except ValueError:
+        try:
+            dt = parsedate_to_datetime(raw)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            seconds = (dt - datetime.now(timezone.utc)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return _DEFAULT_RETRY_AFTER_SECONDS
+    return max(0.0, min(_MAX_RETRY_AFTER_SECONDS, seconds))
 
 
 async def http_fetch_page(
@@ -49,48 +72,69 @@ async def http_fetch_page(
 ) -> PageFetchResult:
     start = time.monotonic()
     current_url = url
+    rate_limit_retried = False
+    last_retry_after: float | None = None
 
     async with security.build_client(timeout=settings.preflight_http_timeout_seconds) as client:
         for _ in range(MAX_REDIRECTS + 1):
-            try:
-                security.validate_scheme(current_url)
-            except URLSecurityError as exc:
-                return PageFetchResult(success=False, error=str(exc), latency_ms=(time.monotonic() - start) * 1000)
+            while True:
+                try:
+                    security.validate_scheme(current_url)
+                except URLSecurityError as exc:
+                    return PageFetchResult(success=False, error=str(exc), latency_ms=(time.monotonic() - start) * 1000)
 
-            try:
-                response = await client.get(current_url)
-            except httpx.HTTPError as exc:
-                return PageFetchResult(
-                    success=False,
-                    error=f"{type(exc).__name__}: {exc}",
-                    latency_ms=(time.monotonic() - start) * 1000,
+                try:
+                    response = await client.get(current_url)
+                except httpx.HTTPError as exc:
+                    return PageFetchResult(
+                        success=False,
+                        error=f"{type(exc).__name__}: {exc}",
+                        latency_ms=(time.monotonic() - start) * 1000,
+                    )
+
+                if response.is_redirect:
+                    location = response.headers.get("location")
+                    if not location:
+                        return PageFetchResult(
+                            success=False,
+                            error="too many redirects",
+                            latency_ms=(time.monotonic() - start) * 1000,
+                        )
+                    current_url = str(httpx.URL(current_url).join(location))
+                    rate_limit_retried = False
+                    break  # advance outer redirect loop; do not count rate-limit retry
+
+                if response.status_code in (429, 503) and not rate_limit_retried:
+                    delay = _parse_retry_after(response.headers.get("retry-after"))
+                    last_retry_after = delay
+                    rate_limit_retried = True
+                    await asyncio.sleep(delay)
+                    continue  # same URL; does not consume a redirect hop
+
+                if len(response.content) > max_bytes:
+                    return PageFetchResult(
+                        success=False,
+                        error=f"response exceeded max_response_bytes ({max_bytes})",
+                        latency_ms=(time.monotonic() - start) * 1000,
+                    )
+
+                content_type = response.headers.get("content-type", "")
+                is_html = "html" in content_type
+                retry_after_seconds = (
+                    last_retry_after if response.status_code in (429, 503) else None
                 )
-
-            if response.is_redirect:
-                location = response.headers.get("location")
-                if not location:
-                    break
-                current_url = str(httpx.URL(current_url).join(location))
-                continue
-
-            if len(response.content) > max_bytes:
+                if response.status_code in (429, 503) and retry_after_seconds is None:
+                    retry_after_seconds = _parse_retry_after(response.headers.get("retry-after"))
                 return PageFetchResult(
-                    success=False,
-                    error=f"response exceeded max_response_bytes ({max_bytes})",
+                    success=True,
+                    final_url=str(response.url),
+                    status_code=response.status_code,
+                    content_type=content_type,
+                    html=response.text if is_html else None,
+                    raw_bytes=response.content,
                     latency_ms=(time.monotonic() - start) * 1000,
+                    retry_after_seconds=retry_after_seconds,
                 )
-
-            content_type = response.headers.get("content-type", "")
-            is_html = "html" in content_type
-            return PageFetchResult(
-                success=True,
-                final_url=str(response.url),
-                status_code=response.status_code,
-                content_type=content_type,
-                html=response.text if is_html else None,
-                raw_bytes=response.content,
-                latency_ms=(time.monotonic() - start) * 1000,
-            )
 
     return PageFetchResult(success=False, error="too many redirects", latency_ms=(time.monotonic() - start) * 1000)
 
