@@ -35,6 +35,16 @@ class PageType(StrEnum):
     SEARCH_RESULTS = "SEARCH_RESULTS"
     FEED = "FEED"
     DOCUMENT = "DOCUMENT"
+    # Soft-block / access-restriction outcomes (spec section 10/13, set by
+    # crawl_engine.py from soft_block_detector.py's verdict -- never
+    # produced by classify() itself, which only reasons about content
+    # shape, not access/authenticity).
+    LOGIN = "LOGIN"
+    ERROR = "ERROR"
+    CAPTCHA = "CAPTCHA"
+    CONSENT_WALL = "CONSENT_WALL"
+    JS_SHELL = "JS_SHELL"
+    SOFT_BLOCK = "SOFT_BLOCK"
     UNKNOWN = "UNKNOWN"
 
 

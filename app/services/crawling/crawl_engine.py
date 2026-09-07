@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 
 from crawlee import Request
 from crawlee.storages import RequestQueue
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import Settings
 from app.db.repositories.crawl_repository import CrawlRepository
@@ -41,6 +42,8 @@ from app.services.discovery.pagination import detect_pagination
 from app.services.events import Event, default_bus
 from app.services.extraction.completeness_scorer import score_completeness
 from app.services.extraction.extraction_router import INDEX_TYPES, PageExtractionResult, extract_for_page
+from app.services.extraction.provenance import build_provenance
+from app.services.extraction.soft_block_detector import PAGE_TYPE_BY_VERDICT, SoftBlockResult, detect_soft_block
 from app.services.intelligence.story_service import process_document_intelligence
 from app.services.monitoring.change_detection import detect_change
 from app.services.monitoring.fingerprints import from_signed_int64, to_signed_int64
@@ -57,6 +60,26 @@ logger = logging.getLogger("webintel.crawl_engine")
 _MAX_CHILD_URLS_PER_INDEX_PAGE = 50  # bounded -- one index page can't blow the frontier open
 # Index-like page types that may need scroll/load-more on browser fetch.
 _SCROLL_PAGE_TYPES = {t.value for t in INDEX_TYPES} | {"HOME", "UNKNOWN"}
+
+_RQ_RETRY_ATTEMPTS = 3
+_RQ_RETRY_DELAY_SECONDS = 0.1
+
+
+async def _rq_call(func, *args, **kwargs):
+    """Crawlee's file-based RequestQueue storage has no built-in retry: a
+    concurrent writer to the same on-disk queue (crawl_default_concurrency
+    in-flight tasks all touching one queue) can transiently see
+    FileNotFoundError on a request/metadata file another task is mid-write
+    on (item 4). Short bounded retry, not a queue reimplementation --
+    ponytail: this is the actual bug (a missing retry around an already-
+    correct storage client), not a reason to swap storage backends."""
+    for attempt in range(_RQ_RETRY_ATTEMPTS):
+        try:
+            return await func(*args, **kwargs)
+        except FileNotFoundError:
+            if attempt == _RQ_RETRY_ATTEMPTS - 1:
+                raise
+            await asyncio.sleep(_RQ_RETRY_DELAY_SECONDS)
 
 
 @dataclass
@@ -99,7 +122,7 @@ async def _safe_enqueue(
     except Exception:  # noqa: BLE001 - URLSecurityError and DNS failures both reject
         stats.ssrf_rejected_urls += 1
         return False
-    await rq.add_request(Request.from_url(url, user_data=user_data))
+    await _rq_call(rq.add_request, Request.from_url(url, user_data=user_data))
     stats.pages_discovered += 1
     return True
 
@@ -143,12 +166,12 @@ async def run_crawl(
     rq = await RequestQueue.open(name=queue_name)
 
     try:
-        await rq.add_request(Request.from_url(seed_url, user_data={"depth": 0}))
+        await _rq_call(rq.add_request, Request.from_url(seed_url, user_data={"depth": 0}))
         stats.pages_discovered += 1
         for extra_url in dict.fromkeys(extra_seed_urls or []):
             if extra_url == seed_url:
                 continue
-            await rq.add_request(Request.from_url(extra_url, user_data={"depth": 0}))
+            await _rq_call(rq.add_request, Request.from_url(extra_url, user_data={"depth": 0}))
             stats.pages_discovered += 1
 
         in_flight: set[asyncio.Task] = set()
@@ -162,7 +185,7 @@ async def run_crawl(
                     break
 
             while len(in_flight) < settings.crawl_default_concurrency and stats.pages_attempted < max_pages:
-                request = await rq.fetch_next_request()
+                request = await _rq_call(rq.fetch_next_request)
                 if request is None:
                     break
                 stats.pages_attempted += 1
@@ -184,7 +207,7 @@ async def run_crawl(
                 in_flight.add(task)
 
             if not in_flight:
-                if await rq.is_finished():
+                if await _rq_call(rq.is_finished):
                     break
                 await asyncio.sleep(0.2)
                 continue
@@ -206,7 +229,7 @@ async def run_crawl(
             await crawl_repo.finalize_run(run_id, stats.as_dict(), duration_ms)
             job = await crawl_repo.get_job(job_id)
             await crawl_repo.mark_finished(job, status="cancelled", error=None, statistics=stats.as_dict())
-        await rq.drop()
+        await _rq_call(rq.drop)
         await default_bus.publish(Event("CRAWL_CANCELLED", {"crawl_job_id": str(job_id)}))
         raise
     except Exception as exc:  # noqa: BLE001 - must still record the failure
@@ -217,11 +240,11 @@ async def run_crawl(
             await crawl_repo.finalize_run(run_id, stats.as_dict(), duration_ms)
             job = await crawl_repo.get_job(job_id)
             await crawl_repo.mark_finished(job, status="failed", error=str(exc), statistics=stats.as_dict())
-        await rq.drop()
+        await _rq_call(rq.drop)
         await default_bus.publish(Event("CRAWL_FAILED", {"crawl_job_id": str(job_id), "error": str(exc)}))
         return
     else:
-        await rq.drop()
+        await _rq_call(rq.drop)
 
     duration_ms = (time.monotonic() - run_start) * 1000
     async with AsyncSessionLocal() as session:
@@ -261,22 +284,32 @@ async def _process_page(
     normalized = normalize_url(url)
     domain = extract_domain(url)
 
+    # --- Phase 1: reads only (item 1 fix) ---------------------------------
+    # A session is opened here just long enough for the scope checks +
+    # domain/pattern history reads + routing decision, then closed BEFORE
+    # any network I/O (politeness sleep, HTTP fetch, Playwright fetch,
+    # extraction). The old code held one session open across all of that --
+    # for crawl_default_concurrency tasks at once, for the whole duration of
+    # a fetch that could include a second Playwright round trip -- which was
+    # the actual QueuePool-exhaustion mechanism, not merely "the pool is too
+    # small". Splitting into short, sequential read/none/write session
+    # blocks means a session is only ever open for the DB round trip it's
+    # doing right then.
     async with AsyncSessionLocal() as session:
         crawl_repo = CrawlRepository(session)
-        doc_repo = DocumentRepository(session)
 
         if same_domain_only and registrable_domain(url) != seed_domain:
             await crawl_repo.add_page(
                 crawl_job_id=job_id, url=url, normalized_url=normalized, depth=depth, status="skipped"
             )
-            await rq.mark_request_as_handled(request)
+            await _rq_call(rq.mark_request_as_handled, request)
             return
 
         if depth > max_depth:
             await crawl_repo.add_page(
                 crawl_job_id=job_id, url=url, normalized_url=normalized, depth=depth, status="skipped"
             )
-            await rq.mark_request_as_handled(request)
+            await _rq_call(rq.mark_request_as_handled, request)
             return
 
         domain_stats = await crawl_repo.get_strategy_stats(domain)
@@ -284,6 +317,7 @@ async def _process_page(
         # Circuit breaker (spec Phase 6 section 27): a domain that's been
         # failing hard doesn't get hammered while "open" -- skip and let a
         # later crawl re-probe it once the backoff window elapses.
+        crawl_delay_ms = 0
         if domain_stats is not None:
             policy_state = PolicyState(
                 crawl_delay_ms=domain_stats.crawl_delay_ms,
@@ -298,10 +332,9 @@ async def _process_page(
                     status="skipped", error="circuit breaker open for this domain",
                 )
                 await default_bus.publish(Event("DOMAIN_THROTTLED", {"domain": domain, "url": url}))
-                await rq.mark_request_as_handled(request)
+                await _rq_call(rq.mark_request_as_handled, request)
                 return
-            if domain_stats.crawl_delay_ms > 0:
-                await asyncio.sleep(domain_stats.crawl_delay_ms / 1000)
+            crawl_delay_ms = domain_stats.crawl_delay_ms
 
         pattern = normalize_url_pattern(url)
         pattern_stats = await crawl_repo.get_pattern_stats_any_type(domain, pattern)
@@ -324,20 +357,28 @@ async def _process_page(
                 extractor=routing.extractor,
                 basis=routing.basis,
             )
-        logger.debug("routing url=%s strategy=%s reasons=%s", url, strategy.value, routing.reasons)
-        await default_bus.publish(Event("FETCH_STRATEGY_SELECTED", {"strategy": strategy.value, "reasons": routing.reasons, "basis": routing.basis}))
-        await default_bus.publish(Event("STRATEGY_DECIDED", {"strategy": strategy.value, "reasons": routing.reasons, "basis": routing.basis}))
+    # --- session closed: everything below until Phase 3 does no DB I/O ----
 
-        enable_scroll = strategy == FetchStrategy.BROWSER
-        fetch_result = await (
-            browser_fetch_page(url, settings, security, enable_scroll=enable_scroll)
-            if strategy == FetchStrategy.BROWSER
-            else http_fetch_page(url, settings, security, max_bytes=settings.crawl_max_response_bytes)
-        )
+    logger.debug("routing url=%s strategy=%s reasons=%s", url, strategy.value, routing.reasons)
+    await default_bus.publish(Event("FETCH_STRATEGY_SELECTED", {"strategy": strategy.value, "reasons": routing.reasons, "basis": routing.basis}))
+    await default_bus.publish(Event("STRATEGY_DECIDED", {"strategy": strategy.value, "reasons": routing.reasons, "basis": routing.basis}))
 
-        if not fetch_result.success:
-            stats.pages_failed += 1
-            failure_category = classify_transport_error(fetch_result.error or "")
+    if crawl_delay_ms > 0:
+        await asyncio.sleep(crawl_delay_ms / 1000)
+
+    enable_scroll = strategy == FetchStrategy.BROWSER
+    fetch_result = await (
+        browser_fetch_page(url, settings, security, enable_scroll=enable_scroll)
+        if strategy == FetchStrategy.BROWSER
+        else http_fetch_page(url, settings, security, max_bytes=settings.crawl_max_response_bytes)
+    )
+
+    if not fetch_result.success:
+        stats.pages_failed += 1
+        failure_category = classify_transport_error(fetch_result.error or "")
+        # --- Phase 3 (failure path): writes only, short session ----------
+        async with AsyncSessionLocal() as session:
+            crawl_repo = CrawlRepository(session)
             updated_stats = await crawl_repo.record_fetch_outcome(
                 domain=domain, strategy=strategy.value, success=False, extraction_ok=False,
                 latency_ms=fetch_result.latency_ms, failure_category=failure_category,
@@ -372,116 +413,181 @@ async def _process_page(
                     )
                     await default_bus.publish(Event("SOURCE_URL_REMOVED", {"source_id": str(source_id), "url": url}))
 
-            await rq.mark_request_as_handled(request)
-            return
+        await _rq_call(rq.mark_request_as_handled, request)
+        return
 
-        stats.pages_fetched += 1
-        stats.bytes_downloaded += len(fetch_result.raw_bytes or b"")
-        await default_bus.publish(Event("PAGE_FETCHED", {"url": url, "status": fetch_result.status_code}))
+    stats.pages_fetched += 1
+    stats.bytes_downloaded += len(fetch_result.raw_bytes or b"")
+    await default_bus.publish(Event("PAGE_FETCHED", {"url": url, "status": fetch_result.status_code}))
 
-        fetch_result, html_analysis, page_extraction, browser_comparison = await _extract_with_browser_escalation(
-            fetch_result, strategy, settings, security, stats, is_seed_homepage=(depth == 0),
-            pattern_hint=(pattern_stats.page_type if pattern_stats else None),
-            domain_js_required_rate=domain_js_rate,
+    fetch_result, html_analysis, page_extraction, browser_comparison = await _extract_with_browser_escalation(
+        fetch_result, strategy, settings, security, stats, is_seed_homepage=(depth == 0),
+        pattern_hint=(pattern_stats.page_type if pattern_stats else None),
+        domain_js_required_rate=domain_js_rate,
+    )
+    extracted = page_extraction.document if page_extraction else None
+    page_type = page_extraction.classification.page_type.value if page_extraction else None
+    extraction_quality = page_extraction.quality.overall if page_extraction and page_extraction.quality else None
+
+    # If browser scroll found infinite-scroll growth, record it.
+    if fetch_result.scroll and fetch_result.scroll.new_items_estimate > 0:
+        await default_bus.publish(Event("INFINITE_SCROLL_DETECTED", {
+            "url": url,
+            "scrolls": fetch_result.scroll.scrolls_performed,
+            "load_more_clicks": fetch_result.scroll.load_more_clicks,
+            "new_items": fetch_result.scroll.new_items_estimate,
+            "stopped_reason": fetch_result.scroll.stopped_reason,
+        }))
+
+    # Soft-block / fake-200 detection (Universal Adaptive Web Intelligence
+    # Phase B, item 1): a transport-successful fetch whose body is a login/
+    # captcha/consent/error interstitial rather than real content.
+    # `page_type` is overridden so it's visible in stored metadata and
+    # domain-learning buckets; the actual "never overwrite good content"
+    # behavior is the write-gate further down (item 8).
+    soft_block: SoftBlockResult | None = None
+    if extracted is not None:
+        soft_block = detect_soft_block(
+            html=fetch_result.html, extracted_body=extracted.body, extraction_quality=extraction_quality,
         )
-        extracted = page_extraction.document if page_extraction else None
-        page_type = page_extraction.classification.page_type.value if page_extraction else None
-        extraction_quality = page_extraction.quality.overall if page_extraction and page_extraction.quality else None
-
-        # If browser scroll found infinite-scroll growth, record it.
-        if fetch_result.scroll and fetch_result.scroll.new_items_estimate > 0:
-            await default_bus.publish(Event("INFINITE_SCROLL_DETECTED", {
-                "url": url,
-                "scrolls": fetch_result.scroll.scrolls_performed,
-                "load_more_clicks": fetch_result.scroll.load_more_clicks,
-                "new_items": fetch_result.scroll.new_items_estimate,
-                "stopped_reason": fetch_result.scroll.stopped_reason,
+        if soft_block.is_blocked:
+            page_type = PAGE_TYPE_BY_VERDICT[soft_block.verdict]
+            await default_bus.publish(Event("SOFT_BLOCK_DETECTED", {
+                "url": url, "verdict": soft_block.verdict.value, "confidence": soft_block.confidence,
+                "signals": soft_block.signals,
             }))
+    blocked = soft_block is not None and soft_block.is_blocked
 
-        # Pagination (spec Phase 9 sections 6/29): detected here (right after
-        # extraction, while fetch_result.html/final_url are on hand) so the
-        # outcome can feed record_pattern_outcome below in the same call --
-        # avoids a second write to the same URLPatternStats row just to
-        # attach one boolean. Enqueued at the SAME depth, not depth+1: a
-        # "next page" is more of the same listing, not a deeper link, so a
-        # tight max_depth shouldn't cut off page 2 of a search-results list.
-        # RequestQueue already dedups by URL, so a `rel=next` link already
-        # present in internal_links (the common case) is a harmless no-op
-        # re-add here, not a double-crawl.
-        pagination_detected = False
-        if fetch_result.html:
-            pagination = detect_pagination(fetch_result.html, fetch_result.final_url or url)
-            pagination_detected = pagination.next_url is not None
-            await default_bus.publish(Event("PAGINATION_DETECTED", {
-                "url": url, "found": pagination_detected, "method": pagination.method,
-                "page_size": pagination.page_size,
-            }))
-            if (
-                pagination.next_url
-                and stats.pagination_pages_enqueued < settings.crawl_max_pagination_pages
-                and not (same_domain_only and registrable_domain(pagination.next_url) != seed_domain)
+    # Pagination (spec Phase 9 sections 6/29): detected here (right after
+    # extraction, while fetch_result.html/final_url are on hand) so the
+    # outcome can feed record_pattern_outcome below in the same call --
+    # avoids a second write to the same URLPatternStats row just to
+    # attach one boolean. Enqueued at the SAME depth, not depth+1: a
+    # "next page" is more of the same listing, not a deeper link, so a
+    # tight max_depth shouldn't cut off page 2 of a search-results list.
+    # RequestQueue already dedups by URL, so a `rel=next` link already
+    # present in internal_links (the common case) is a harmless no-op
+    # re-add here, not a double-crawl.
+    pagination_detected = False
+    if fetch_result.html:
+        pagination = detect_pagination(fetch_result.html, fetch_result.final_url or url)
+        pagination_detected = pagination.next_url is not None
+        await default_bus.publish(Event("PAGINATION_DETECTED", {
+            "url": url, "found": pagination_detected, "method": pagination.method,
+            "page_size": pagination.page_size,
+        }))
+        if (
+            pagination.next_url
+            and stats.pagination_pages_enqueued < settings.crawl_max_pagination_pages
+            and not (same_domain_only and registrable_domain(pagination.next_url) != seed_domain)
+        ):
+            enqueued = await _safe_enqueue(
+                rq, pagination.next_url, security=security, user_data={"depth": depth},
+                stats=stats, max_discovered=settings.crawl_max_discovered_urls,
+            )
+            if enqueued:
+                stats.pagination_pages_enqueued += 1
+
+    # Completeness (Phase 8.1 section 19): distinct from quality -- a
+    # clean short excerpt of a much longer page is high-quality,
+    # low-completeness. Reuses signals already computed above (HTML
+    # analysis, listing count, pagination) rather than re-parsing.
+    completeness = None
+    if extracted is not None and html_analysis is not None:
+        listing_count = len((extracted.raw_metadata or {}).get("listings") or [])
+        completeness = score_completeness(
+            extracted_body_chars=len(extracted.body), page_meaningful_text_chars=html_analysis.meaningful_text_length,
+            listing_count=listing_count, internal_link_count=len(html_analysis.internal_links),
+            pagination_detected=pagination_detected,
+        )
+        extracted.raw_metadata = {
+            **(extracted.raw_metadata or {}),
+            "completeness": completeness.overall,
+        }
+        await default_bus.publish(Event("EXTRACTION_COMPLETENESS_SCORED", {"url": url, "overall": completeness.overall}))
+
+    # Provenance (item 7 fix): built HERE, after completeness is attached to
+    # raw_metadata above -- extraction_router.py used to build this itself,
+    # before completeness was ever computed (completeness needs the final,
+    # browser-escalation-resolved html_analysis/pagination result, which
+    # isn't known until this point), so provenance["completeness"]
+    # (provenance.py reads raw_metadata["completeness"]) was always None.
+    if extracted is not None:
+        provenance = build_provenance(extracted, page_extraction.structured if page_extraction else None)
+        extracted.raw_metadata = {**extracted.raw_metadata, "provenance": provenance}
+        await default_bus.publish(Event("PROVENANCE_RECORDED", {
+            "url": url, "field_count": len(provenance) if "_note" not in provenance else 0,
+        }))
+
+    # Discovery -> extraction feedback (Phase 8.1 sections 9/20): a
+    # collection/index page's extracted `listings[]` (index_extractor.py,
+    # built in Phase 9) are candidate child URLs, not just metadata to
+    # store -- without this, /news, /forum, /classifieds indexes were
+    # extracted but their items were never actually crawled. Enqueued
+    # one level deeper (this IS a real link into a distinct page, unlike
+    # pagination above), same same_domain_only/max_depth rules as
+    # ordinary link discovery, capped so one index page can't blow the
+    # frontier open.
+    child_url_count = 0
+    if extracted is not None and depth < max_depth:
+        child_urls = _extract_child_urls_from_listings(
+            extracted.raw_metadata, same_domain_only=same_domain_only, seed_domain=seed_domain,
+            max_items=settings.crawl_max_items_per_index,
+        )
+        for child_url in child_urls:
+            if await _safe_enqueue(
+                rq, child_url, security=security, user_data={"depth": depth + 1},
+                stats=stats, max_discovered=settings.crawl_max_discovered_urls,
             ):
-                enqueued = await _safe_enqueue(
-                    rq, pagination.next_url, security=security, user_data={"depth": depth},
-                    stats=stats, max_discovered=settings.crawl_max_discovered_urls,
-                )
-                if enqueued:
-                    stats.pagination_pages_enqueued += 1
+                child_url_count += 1
+        if child_url_count:
+            await default_bus.publish(Event("INDEX_CHILD_URLS_DISCOVERED", {"url": url, "count": child_url_count}))
 
-        # Completeness (Phase 8.1 section 19): distinct from quality -- a
-        # clean short excerpt of a much longer page is high-quality,
-        # low-completeness. Reuses signals already computed above (HTML
-        # analysis, listing count, pagination) rather than re-parsing.
-        completeness = None
-        if extracted is not None and html_analysis is not None:
-            listing_count = len((extracted.raw_metadata or {}).get("listings") or [])
-            completeness = score_completeness(
-                extracted_body_chars=len(extracted.body), page_meaningful_text_chars=html_analysis.meaningful_text_length,
-                listing_count=listing_count, internal_link_count=len(html_analysis.internal_links),
-                pagination_detected=pagination_detected,
-            )
-            extracted.raw_metadata = {
-                **(extracted.raw_metadata or {}),
-                "completeness": completeness.overall,
-            }
-            await default_bus.publish(Event("EXTRACTION_COMPLETENESS_SCORED", {"url": url, "overall": completeness.overall}))
+    # Write-gate (item 8): a blocked verdict means this is NOT treated as a
+    # usable extraction for storage purposes, however plausible the
+    # ArticleDocument object the extractor built from the interstitial's own
+    # markup looks. `extraction_ok=False` routes it through the existing
+    # extraction-failure counters; `FailureCategory.SOFT_BLOCKED` (added to
+    # BLOCKED_OR_THROTTLED, same as 403/429) makes it visible in domain
+    # learning without a bespoke counter and correctly never trips REMOVED.
+    # The document create/update block below is skipped entirely: an
+    # existing good document is never overwritten with challenge-page
+    # content, and a brand-new blocked URL doesn't get a garbage document
+    # created for it on first crawl.
+    extraction_ok = extracted is not None and not blocked
+    status_failure_category = (
+        FailureCategory.SOFT_BLOCKED if blocked
+        else (classify_http_status(fetch_result.status_code) if fetch_result.status_code is not None else None)
+    )
+    if status_failure_category == FailureCategory.HTTP_403:
+        http_403_total.inc()
+    elif status_failure_category == FailureCategory.HTTP_429:
+        http_429_total.inc()
+    js_required = strategy == FetchStrategy.HTTP and fetch_result.used_browser
+    empty_content = not fetch_result.html
+    extractor_used = extracted.extractor if extracted else None
+    final_strategy = "browser" if fetch_result.used_browser else "http"
 
-        # Discovery -> extraction feedback (Phase 8.1 sections 9/20): a
-        # collection/index page's extracted `listings[]` (index_extractor.py,
-        # built in Phase 9) are candidate child URLs, not just metadata to
-        # store -- without this, /news, /forum, /classifieds indexes were
-        # extracted but their items were never actually crawled. Enqueued
-        # one level deeper (this IS a real link into a distinct page, unlike
-        # pagination above), same same_domain_only/max_depth rules as
-        # ordinary link discovery, capped so one index page can't blow the
-        # frontier open.
-        child_url_count = 0
-        if extracted is not None and depth < max_depth:
-            child_urls = _extract_child_urls_from_listings(
-                extracted.raw_metadata, same_domain_only=same_domain_only, seed_domain=seed_domain,
-                max_items=settings.crawl_max_items_per_index,
-            )
-            for child_url in child_urls:
-                if await _safe_enqueue(
-                    rq, child_url, security=security, user_data={"depth": depth + 1},
-                    stats=stats, max_discovered=settings.crawl_max_discovered_urls,
-                ):
-                    child_url_count += 1
-            if child_url_count:
-                await default_bus.publish(Event("INDEX_CHILD_URLS_DISCOVERED", {"url": url, "count": child_url_count}))
+    raw_bytes = (fetch_result.html or "").encode("utf-8") if fetch_result.html else (fetch_result.raw_bytes or b"")
+    extension = "html" if fetch_result.html else "bin"
+    page_id = uuid.uuid4()
+    stored = await artifact_store.put_bytes(
+        ArtifactStore.build_key(
+            source_id=str(source_id) if source_id else "adhoc",
+            crawl_id=str(job_id), page_id=str(page_id), extension=extension,
+        ),
+        raw_bytes,
+        fetch_result.content_type or "application/octet-stream",
+    )
+    document_id = None
+    change_type = None
 
-        extraction_ok = extracted is not None
-        status_failure_category = (
-            classify_http_status(fetch_result.status_code) if fetch_result.status_code is not None else None
-        )
-        if status_failure_category == FailureCategory.HTTP_403:
-            http_403_total.inc()
-        elif status_failure_category == FailureCategory.HTTP_429:
-            http_429_total.inc()
-        js_required = strategy == FetchStrategy.HTTP and fetch_result.used_browser
-        empty_content = not fetch_result.html
-        extractor_used = extracted.extractor if extracted else None
-        final_strategy = "browser" if fetch_result.used_browser else "http"
+    # --- Phase 3: writes only, fresh short session ------------------------
+    # Everything above this point (fetch, extraction, soft-block detection,
+    # pagination, completeness, provenance, artifact upload) did no DB I/O.
+    async with AsyncSessionLocal() as session:
+        crawl_repo = CrawlRepository(session)
+        doc_repo = DocumentRepository(session)
 
         updated_stats = await crawl_repo.record_fetch_outcome(
             domain=domain,
@@ -520,21 +626,7 @@ async def _process_page(
         else:
             stats.http_pages += 1
 
-        raw_bytes = (fetch_result.html or "").encode("utf-8") if fetch_result.html else (fetch_result.raw_bytes or b"")
-        extension = "html" if fetch_result.html else "bin"
-        page_id = uuid.uuid4()
-        stored = await artifact_store.put_bytes(
-            ArtifactStore.build_key(
-                source_id=str(source_id) if source_id else "adhoc",
-                crawl_id=str(job_id), page_id=str(page_id), extension=extension,
-            ),
-            raw_bytes,
-            fetch_result.content_type or "application/octet-stream",
-        )
-        document_id = None
-        change_type = None
-
-        if extracted is not None:
+        if extracted is not None and not blocked:
             stats.pages_extracted += 1
             content_hash = exact_hash(raw_bytes)
             norm_hash = normalized_hash(extracted.body)
@@ -549,8 +641,20 @@ async def _process_page(
                 "completeness": completeness.overall if completeness else None,
             }
 
-            existing = await doc_repo.find_by_normalized_url(normalized)
-            if existing is None:
+            # Item 3 fix: `find_by_normalized_url` is a `FOR UPDATE` read,
+            # but that only locks a row that already EXISTS -- it can't stop
+            # two concurrent crawls of the same URL (e.g. an instant crawl
+            # racing a scheduled monitoring crawl) from both seeing `None`
+            # and both attempting to create. The DDL's partial unique index
+            # on normalized_url is what actually prevents the duplicate: the
+            # loser's INSERT blocks until the winner commits, then raises
+            # IntegrityError. Retried once as an update instead of letting
+            # it propagate up and fail the entire crawl job over one URL.
+            for attempt in range(2):
+                existing = await doc_repo.find_by_normalized_url(normalized)
+                if existing is not None:
+                    break
+
                 # Cross-source duplicate foundation (spec Phase 7 section
                 # 38): a different URL landing on identical normalized body
                 # text -- syndicated/reposted content. Flagged, not merged
@@ -562,31 +666,38 @@ async def _process_page(
                         Event("NEAR_DUPLICATE_DETECTED", {"document_id": str(near_dup.id), "url": url})
                     )
 
-                document = await doc_repo.create(
-                    source_id=source_id,
-                    crawl_job_id=job_id,
-                    url=url,
-                    normalized_url=normalized,
-                    canonical_url=extracted.canonical_url,
-                    domain=domain,
-                    title=extracted.headline,
-                    author=extracted.author,
-                    published_at=extracted.published_at,
-                    source_updated_at=None,
-                    language=extracted.language,
-                    content_type="html",
-                    page_type=page_type,
-                    current_content=extracted.body,
-                    extracted_metadata=extra_metadata,
-                    links=(html_analysis.internal_links[:200] if html_analysis else []),
-                    images=extracted.images,
-                    content_hash=content_hash,
-                    normalized_hash=norm_hash,
-                    simhash=to_signed_int64(body_simhash),
-                    extraction_method=extracted.extractor,
-                    extraction_confidence=extracted.confidence,
-                    current_version=1,
-                )
+                try:
+                    document = await doc_repo.create(
+                        source_id=source_id,
+                        crawl_job_id=job_id,
+                        url=url,
+                        normalized_url=normalized,
+                        canonical_url=extracted.canonical_url,
+                        domain=domain,
+                        title=extracted.headline,
+                        author=extracted.author,
+                        published_at=extracted.published_at,
+                        source_updated_at=None,
+                        language=extracted.language,
+                        content_type="html",
+                        page_type=page_type,
+                        current_content=extracted.body,
+                        extracted_metadata=extra_metadata,
+                        links=(html_analysis.internal_links[:200] if html_analysis else []),
+                        images=extracted.images,
+                        content_hash=content_hash,
+                        normalized_hash=norm_hash,
+                        simhash=to_signed_int64(body_simhash),
+                        extraction_method=extracted.extractor,
+                        extraction_confidence=extracted.confidence,
+                        current_version=1,
+                    )
+                except IntegrityError:
+                    if attempt == 1:
+                        raise  # not the expected race -- surface it
+                    await session.rollback()
+                    continue
+
                 await doc_repo.add_version(
                     document,
                     version_number=1,
@@ -614,7 +725,10 @@ async def _process_page(
                     simhash_signed=document.simhash, page_type=page_type, domain=domain,
                     published_at=document.published_at, updated_at=None,
                 )
-            else:
+                existing = None
+                break
+
+            if existing is not None:
                 # Phase 7 integration point: this is where a freshly
                 # extracted document meets the previously stored one. The
                 # old gate here was a bare `existing.normalized_hash !=
@@ -773,17 +887,18 @@ async def _process_page(
         )
         await default_bus.publish(Event("PAGE_PARSED", {"url": url, "change_type": change_type}))
         await doc_repo.commit()
+    # --- session closed ----------------------------------------------------
 
-        if html_analysis and depth < max_depth:
-            for link in html_analysis.internal_links:
-                if same_domain_only and registrable_domain(link) != seed_domain:
-                    continue
-                await _safe_enqueue(
-                    rq, link, security=security, user_data={"depth": depth + 1},
-                    stats=stats, max_discovered=settings.crawl_max_discovered_urls,
-                )
+    if html_analysis and depth < max_depth:
+        for link in html_analysis.internal_links:
+            if same_domain_only and registrable_domain(link) != seed_domain:
+                continue
+            await _safe_enqueue(
+                rq, link, security=security, user_data={"depth": depth + 1},
+                stats=stats, max_discovered=settings.crawl_max_discovered_urls,
+            )
 
-        await rq.mark_request_as_handled(request)
+    await _rq_call(rq.mark_request_as_handled, request)
 
 
 def _extract_child_urls_from_listings(

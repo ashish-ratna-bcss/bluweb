@@ -32,3 +32,10 @@ def cancel(job_id: uuid.UUID) -> bool:
 def is_running(job_id: uuid.UUID) -> bool:
     task = _running_tasks.get(job_id)
     return task is not None and not task.done()
+
+
+def running_count() -> int:
+    """Item 2: lets the scheduler cap total concurrently-dispatched jobs.
+    `_running_tasks` already only holds not-yet-done tasks (the done-callback
+    pops them), so this is just its size."""
+    return len(_running_tasks)

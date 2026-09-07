@@ -24,9 +24,8 @@ from app.services.extraction.forum_extractor import extract_forum
 from app.services.extraction.generic_extractor import extract as generic_extract
 from app.services.extraction.index_extractor import extract_index
 from app.services.extraction.listing_extractor import extract_listing
-from app.services.extraction.provenance import build_provenance
 from app.services.extraction.quality_scorer import QualityScore, score_extraction
-from app.services.extraction.structured_data import extract_structured_data
+from app.services.extraction.structured_data import StructuredData, extract_structured_data
 from app.services.preflight.models import HTMLAnalysisResult
 
 FORUM_THREAD_TYPES = (PageType.FORUM_THREAD, PageType.DISCUSSION_THREAD)
@@ -55,6 +54,13 @@ class PageExtractionResult:
     classification: ClassificationResult
     document: ArticleDocument | None
     quality: QualityScore | None = None
+    # Threaded through so the caller can build provenance itself, AFTER it
+    # has attached completeness to document.raw_metadata (spec section 7's
+    # provenance-ordering fix) -- built here it would run before
+    # completeness exists (crawl_engine.py scores that once the full
+    # browser-escalation comparison is resolved), so provenance["completeness"]
+    # would always be None. See app/services/crawling/crawl_engine.py.
+    structured: StructuredData | None = None
 
 
 async def extract_for_page(
@@ -125,14 +131,11 @@ async def extract_for_page(
             document, quality = fallback_document, fallback_quality
 
     if document is not None:
-        provenance = build_provenance(document, structured)
-        document.raw_metadata = {**document.raw_metadata, "provenance": provenance}
-        await default_bus.publish(Event("PROVENANCE_RECORDED", {"url": url, "field_count": len(provenance) if "_note" not in provenance else 0}))
         await default_bus.publish(Event("EXTRACTION_COMPLETED", {
             "url": url, "extractor": document.extractor, "page_type": page_type.value,
         }))
 
-    return PageExtractionResult(classification=classification, document=document, quality=quality)
+    return PageExtractionResult(classification=classification, document=document, quality=quality, structured=structured)
 
 
 async def _scrapling_fallback(

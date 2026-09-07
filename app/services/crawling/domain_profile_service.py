@@ -195,6 +195,43 @@ def _decide_from_stats(stats, min_observations: int, *, scope: str, basis: str) 
             basis=basis,
         )
 
+    # Completeness gate (Universal Adaptive Web Intelligence item 6): quality
+    # can be high on a clean-but-partial excerpt, so a chronically low
+    # completeness score is a distinct, independent escalation signal --
+    # e.g. an infinite-scroll listing whose HTTP fetch only ever sees page 1.
+    avg_completeness = getattr(stats, "avg_completeness", 0.0) or 0.0
+    completeness_obs = getattr(stats, "completeness_observations", 0) or 0
+    if (
+        completeness_obs >= min_observations
+        and avg_completeness < 0.4
+        and browser_viable
+        and http_attempts >= min_observations
+    ):
+        return RoutingDecision(
+            strategy=FetchStrategy.BROWSER,
+            reasons=[
+                f"{scope} avg completeness {avg_completeness:.2f} below threshold "
+                f"across {completeness_obs} observations"
+            ],
+            extractor=preferred_extractor,
+            basis=basis,
+        )
+
+    # Soft-block rate (item 6/12): reuses the existing failure_counts bag
+    # (soft_block_detector.py's outcome is recorded there under
+    # FailureCategory.SOFT_BLOCKED, same as any other failure category) --
+    # no dedicated counter needed. A domain that's frequently serving
+    # login/captcha/consent walls over plain HTTP is worth trying a real
+    # browser context against, even though the HTTP "fetch" itself succeeds.
+    soft_block_count = (getattr(stats, "failure_counts", None) or {}).get("soft_blocked", 0)
+    if http_attempts >= min_observations and browser_viable and soft_block_count / http_attempts > 0.3:
+        return RoutingDecision(
+            strategy=FetchStrategy.BROWSER,
+            reasons=[f"{scope} soft-block rate {soft_block_count}/{http_attempts} over HTTP"],
+            extractor=preferred_extractor,
+            basis=basis,
+        )
+
     if (http_failure_rate > 0.6 or extraction_failure_rate > 0.6) and browser_viable:
         reasons = [f"{scope} profile has {http_attempts} HTTP observations"]
         if extraction_failure_rate > 0.6:

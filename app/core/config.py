@@ -7,6 +7,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str  # required — external Postgres (docs/unified_schema.sql); no Docker Postgres
+    # Explicit pool sizing (Universal Adaptive Web Intelligence item 2) --
+    # SQLAlchemy's unconfigured defaults (5 + 10 overflow = 15 total) were
+    # silently relied on; explicit so it's a deliberate, tunable choice.
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
 
     preflight_max_sample_pages: int = 15
     preflight_http_timeout_seconds: float = 10.0
@@ -41,6 +46,16 @@ class Settings(BaseSettings):
 
     monitoring_removal_failure_threshold: int = 3
     scheduler_poll_interval_seconds: float = 30.0
+    # Caps total concurrently-running crawl jobs the scheduler will dispatch
+    # in one tick, independent of each job's own crawl_default_concurrency
+    # (item 2) -- without this, an unbounded number of monitoring sources
+    # coming due at once each launch their own Playwright/DB-session
+    # footprint with no ceiling.
+    scheduler_max_concurrent_jobs: int = 10
+    # Process-wide cap on concurrently open Playwright/Chromium processes
+    # across ALL crawl jobs (instant + monitoring combined) -- each is a
+    # real OS process, the single most expensive resource in this pipeline.
+    crawl_max_concurrent_browser_global: int = 8
 
     domain_learning_min_observations: int = 5
     # Prefer browser when historical quality-compare says browser wins often.

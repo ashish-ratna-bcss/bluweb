@@ -25,6 +25,7 @@ from app.core.config import Settings
 from app.services.discovery.pagination import detect_pagination
 from app.services.discovery.sitemap_discovery import MAX_URLS_PER_SITEMAP, discover_sitemap_urls
 from app.services.extraction.extraction_router import extract_for_page
+from app.services.extraction.provenance import build_provenance
 from app.services.preflight.feeds import check_feeds
 from app.services.preflight.html import analyze_html
 from app.services.preflight.models import DiscoveryStatus
@@ -46,7 +47,11 @@ async def test_real_blog_post_classified_and_extracted_correctly():
     assert result.document.author == "Simon Willison"
     assert result.document.published_at is not None
     assert result.quality.overall > 0.7
-    provenance = result.document.raw_metadata["provenance"]
+    # Provenance is built by the caller (crawl_engine.py), not extract_for_page
+    # itself -- moved so completeness (scored after browser-escalation
+    # compare resolves) exists before provenance reads it. Build it here the
+    # same way crawl_engine.py does.
+    provenance = build_provenance(result.document, result.structured)
     assert provenance["body"]["source"] == "trafilatura"
     assert provenance["title"]["value"] == result.document.headline
 

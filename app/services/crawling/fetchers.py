@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass
 
@@ -11,6 +12,22 @@ from app.services.crawling.browser_scroll import ScrollBudget, ScrollResult, exp
 from app.services.security.url_security import URLSecurityError, URLSecurityService
 
 MAX_REDIRECTS = 5
+
+# Process-wide concurrency cap on Chromium launches (item 2): each call
+# spins up a full browser process, and nothing previously bounded how many
+# could run at once across every concurrent crawl job. Sized from the first
+# Settings this module sees; every job shares one process-wide gate, not a
+# per-job one, since it's the OS process count that's the scarce resource.
+# ponytail: a semaphore, not a pool -- reuse-pooling browser contexts is a
+# real future optimization, not needed to fix "too many at once".
+_browser_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_browser_semaphore(settings: Settings) -> asyncio.Semaphore:
+    global _browser_semaphore
+    if _browser_semaphore is None:
+        _browser_semaphore = asyncio.Semaphore(settings.crawl_max_concurrent_browser_global)
+    return _browser_semaphore
 
 
 @dataclass
@@ -113,7 +130,7 @@ async def browser_fetch_page(
     )
 
     try:
-        async with async_playwright() as pw:
+        async with _get_browser_semaphore(settings), async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
             try:
                 context = await browser.new_context(user_agent=settings.crawler_user_agent)

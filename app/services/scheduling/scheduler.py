@@ -47,6 +47,13 @@ async def _dispatch_due_sources(settings: Settings) -> None:
         crawl_repo = CrawlRepository(session)
         due_sources = await source_repo.list_due(now=datetime.now(timezone.utc))
 
+        # Global dispatch cap (item 2): a due-source list larger than the
+        # available slots just waits for the next tick -- next_crawl_at is
+        # left untouched for whatever gets skipped, so nothing is dropped,
+        # only delayed by one poll interval.
+        available_slots = max(0, settings.scheduler_max_concurrent_jobs - registry.running_count())
+        due_sources = due_sources[:available_slots]
+
         for source in due_sources:
             if await crawl_repo.get_active_job_for_source(source.id) is not None:
                 continue  # previous crawl for this source is still running -- don't pile up

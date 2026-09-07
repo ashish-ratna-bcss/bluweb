@@ -33,6 +33,12 @@ class FailureCategory(StrEnum):
     DISCOVERY_FAILURE = "discovery_failure"
     SITEMAP_FAILURE = "sitemap_failure"
     FEED_FAILURE = "feed_failure"
+    # Universal Adaptive Web Intelligence Phase B: a transport-successful
+    # (HTTP 200) response whose body is a login/captcha/consent/error
+    # interstitial rather than real content -- see soft_block_detector.py.
+    # Reuses the existing failure_counts/circuit-breaker machinery instead
+    # of a bespoke counter (ponytail).
+    SOFT_BLOCKED = "soft_blocked"
     NONE = "none"  # success
 
 
@@ -44,6 +50,7 @@ BLOCKED_OR_THROTTLED = frozenset({
     FailureCategory.HTTP_403,
     FailureCategory.HTTP_429,
     FailureCategory.ROBOTS_BLOCKED,
+    FailureCategory.SOFT_BLOCKED,
 })
 
 

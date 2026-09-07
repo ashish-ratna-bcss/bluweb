@@ -122,6 +122,43 @@ def test_decision_carries_preferred_extractor_when_known():
     assert decision.extractor == "news"
 
 
+# -- Universal Adaptive Web Intelligence Phase B: completeness + soft-block
+# rate as independent escalation signals (item 6) --
+
+
+def test_low_completeness_history_escalates_to_browser():
+    # High quality, high HTTP success rate -- but completeness (how much of
+    # the page's own content was actually captured) is chronically low, e.g.
+    # an infinite-scroll listing whose HTTP fetch only ever sees page 1.
+    stats = FakeStats(http_attempts=20, http_successes=19, browser_attempts=10, browser_successes=9)
+    stats.avg_completeness = 0.2
+    stats.completeness_observations = 10
+    decision = decide_routing(requested=FetchStrategy.AUTO, domain_stats=stats, min_observations=5)
+    assert decision.strategy == FetchStrategy.BROWSER
+    assert any("completeness" in r for r in decision.reasons)
+
+
+def test_high_soft_block_rate_escalates_to_browser():
+    # HTTP "succeeds" (200s) but a large share are soft-blocked (login/
+    # captcha/consent walls) -- worth trying a real browser context.
+    stats = FakeStats(
+        http_attempts=20, http_successes=19, browser_attempts=10, browser_successes=9,
+        failure_counts={"soft_blocked": 8},
+    )
+    decision = decide_routing(requested=FetchStrategy.AUTO, domain_stats=stats, min_observations=5)
+    assert decision.strategy == FetchStrategy.BROWSER
+    assert any("soft-block" in r for r in decision.reasons)
+
+
+def test_low_soft_block_rate_does_not_escalate():
+    stats = FakeStats(
+        http_attempts=20, http_successes=19, browser_attempts=10, browser_successes=9,
+        failure_counts={"soft_blocked": 1},
+    )
+    decision = decide_routing(requested=FetchStrategy.AUTO, domain_stats=stats, min_observations=5)
+    assert decision.strategy == FetchStrategy.HTTP
+
+
 # -- basis (spec Phase 9 section 3: every learned decision exposes which
 # precedence rung actually decided it, not just human-readable prose) --
 
