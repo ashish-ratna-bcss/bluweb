@@ -26,12 +26,21 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 @router.get("", response_model=list[DocumentResponse])
 async def list_documents(
     crawl_id: uuid.UUID | None = Query(default=None),
+    source_id: uuid.UUID | None = Query(default=None),
     domain: str | None = Query(default=None),
     page_type: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> list[DocumentResponse]:
+    """List documents. Prefer `source_id` for source-owned docs (monitoring).
+
+    `crawl_id` remains for crawl-scoped handoff; `domain` is a coarse host
+    filter. Clients must never require users to type these IDs — resolve
+    them from selected Source / Crawl objects in the UI.
+    """
     repo = DocumentRepository(db)
-    documents = await repo.list_documents(crawl_job_id=crawl_id, domain=domain, page_type=page_type)
+    documents = await repo.list_documents(
+        crawl_job_id=crawl_id, source_id=source_id, domain=domain, page_type=page_type,
+    )
     return [_to_document_response(d) for d in documents]
 
 

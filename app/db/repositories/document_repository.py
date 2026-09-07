@@ -104,6 +104,7 @@ class DocumentRepository:
         self,
         *,
         crawl_job_id: uuid.UUID | None = None,
+        source_id: uuid.UUID | None = None,
         domain: str | None = None,
         page_type: str | None = None,
         limit: int = 50,
@@ -111,6 +112,8 @@ class DocumentRepository:
         stmt = select(Document).order_by(Document.collected_at.desc()).limit(limit)
         if crawl_job_id is not None:
             stmt = stmt.where(Document.crawl_job_id == crawl_job_id)
+        if source_id is not None:
+            stmt = stmt.where(Document.source_id == source_id)
         if domain is not None:
             stmt = stmt.where(Document.domain == domain)
         if page_type is not None:
